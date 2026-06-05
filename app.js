@@ -8,21 +8,8 @@ const Storage = {
   },
   set(key, val) {
     localStorage.setItem('study_' + key, JSON.stringify(val));
-    // 每次数据变更时标记需要同步
-    _markDirty();
   }
 };
-
-// 防抖同步标记
-let _dirtyTimer = null;
-function _markDirty() {
-  if (_dirtyTimer) clearTimeout(_dirtyTimer);
-  _dirtyTimer = setTimeout(() => {
-    if (typeof CloudSync !== 'undefined' && CloudSync.pushToCloud) {
-      CloudSync.pushToCloud();
-    }
-  }, 2000);
-}
 
 // ==================== 共享数据引用 ====================
 function getMottos() { return typeof SharedData !== 'undefined' ? SharedData.MOTTOS : []; }
@@ -2215,10 +2202,9 @@ document.addEventListener('keydown', function(e) {
 
 // ==================== 初始化 ====================
 async function init() {
-  // 认证检查（云端同步 + 本地账号系统）
+  // 认证检查（本地账号系统）
   if (typeof checkAuthAndInit === 'function') {
-    const authed = await checkAuthAndInit();
-    if (!authed) return;
+    if (!checkAuthAndInit()) return;
   }
 
   try { if (typeof SharedData !== 'undefined') await SharedData.load(); } catch (e) { console.error('数据加载失败:', e); }
