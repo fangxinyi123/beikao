@@ -791,6 +791,123 @@ html { scroll-behavior: smooth; }
 
 .task-done { opacity: 0.65; }
 
+/* ==================== AI 分析汇总 ==================== */
+.ai-analysis-card {
+  background: linear-gradient(135deg, #f8f6ff, #f0ecff);
+  border: 1px solid #d5c8ff;
+  margin-bottom: 16px;
+}
+[data-theme="dark"] .ai-analysis-card {
+  background: linear-gradient(135deg, #1a1530, #1f1a3a);
+  border-color: #3a2e60;
+}
+.ai-analysis-card .card-title { color: #5a4bd1; }
+[data-theme="dark"] .ai-analysis-card .card-title { color: #a29bfe; }
+
+.ai-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+.ai-summary-item {
+  text-align: center;
+  padding: 12px 8px;
+  background: var(--card-bg);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 1px 6px rgba(108,92,231,0.06);
+  transition: var(--transition);
+}
+.ai-summary-item:hover { transform: translateY(-2px); box-shadow: var(--shadow-hover); }
+.ai-summary-num {
+  font-size: 24px;
+  font-weight: 700;
+  background: var(--primary-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.ai-summary-label { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+/* 科目分布条 */
+.ai-subject-bars { display: flex; flex-direction: column; gap: 8px; }
+.ai-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+.ai-bar-label { width: 70px; text-align: right; color: var(--text-secondary); flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ai-bar-track {
+  flex: 1;
+  height: 10px;
+  background: var(--border);
+  border-radius: 5px;
+  overflow: hidden;
+}
+.ai-bar-fill {
+  height: 100%;
+  background: var(--primary-gradient);
+  border-radius: 5px;
+  transition: width 0.6s var(--bounce);
+}
+.ai-bar-count { width: 30px; color: var(--text-muted); flex-shrink: 0; text-align: left; }
+
+/* 关键词标签 */
+.ai-keywords {
+  line-height: 2.2;
+  padding: 8px 0;
+  text-align: center;
+}
+.ai-keyword-tag {
+  display: inline-block;
+  margin: 2px 6px;
+  color: var(--primary);
+  font-weight: 500;
+  transition: var(--transition);
+}
+.ai-keyword-tag:hover { transform: scale(1.15); }
+
+/* 时间趋势 */
+.ai-timeline {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-around;
+  gap: 8px;
+  padding: 8px 0;
+  min-height: 60px;
+}
+.ai-timeline-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.ai-timeline-date { font-size: 10px; color: var(--text-muted); }
+.ai-timeline-dot {
+  width: 20px;
+  min-height: 6px;
+  background: var(--primary-gradient);
+  border-radius: 10px;
+  transition: height 0.4s var(--bounce);
+}
+.ai-timeline-count { font-size: 10px; color: var(--primary); font-weight: 600; }
+
+/* 学习建议 */
+.ai-suggestions { display: flex; flex-direction: column; gap: 8px; }
+.ai-suggestion-item {
+  padding: 10px 14px;
+  background: var(--card-bg);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--text-secondary);
+  border-left: 3px solid var(--primary);
+  line-height: 1.6;
+}
+
+@media (max-width: 768px) {
+  .ai-summary-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
 /* ==================== 响应式 ==================== */
 @media (max-width: 600px) {
   .stats-grid { grid-template-columns: repeat(2, 1fr); }

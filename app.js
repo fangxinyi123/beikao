@@ -959,9 +959,60 @@ function deleteError(id) { let errors = Storage.get('errors', []); errors = erro
 // ==================== 笔记 ====================
 function renderNotes(container) {
   const notes = Storage.get('notes', []);
-  container.innerHTML =
-    '<div class="card"><div class="card-title">📒 学习笔记 <button class="btn btn-small btn-primary" onclick="addNote()" style="margin-left:auto">+ 新建</button></div>' +
-    (notes.length === 0 ? '<div style="text-align:center;color:var(--text-muted);padding:20px">📒 还没有笔记</div>' :
+  let html = '';
+
+  // AI 分析汇总卡片
+  if (notes.length > 0) {
+    const analysis = analyzeNotes(notes);
+    html += '<div class="card ai-analysis-card">' +
+      '<div class="card-title">🤖 AI 分析汇总 <span style="font-size:11px;color:var(--text-muted);font-weight:400">（基于全部笔记智能分析）</span>' +
+      '<button class="btn btn-small btn-cancel" onclick="toggleAiDetail()" style="margin-left:auto;font-size:11px">' +
+      '<span id="aiToggleIcon">📊</span> <span id="aiToggleText">展开详情</span></button></div>' +
+      '<div class="ai-summary-grid">' +
+      '<div class="ai-summary-item"><div class="ai-summary-num">' + analysis.totalCount + '</div><div class="ai-summary-label">📒 笔记总数</div></div>' +
+      '<div class="ai-summary-item"><div class="ai-summary-num">' + analysis.totalChars.toLocaleString() + '</div><div class="ai-summary-label">📝 总字数</div></div>' +
+      '<div class="ai-summary-item"><div class="ai-summary-num">' + analysis.subjectCount + '</div><div class="ai-summary-label">📂 覆盖科目</div></div>' +
+      '<div class="ai-summary-item"><div class="ai-summary-num">' + analysis.keywordCount + '</div><div class="ai-summary-label">🏷️ 关键词提取</div></div>' +
+      '</div>' +
+
+      // 展开详情区域
+      '<div id="aiDetailArea" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">' +
+
+      // 科目分布
+      '<div style="margin-bottom:14px"><strong>📊 科目分布</strong></div>' +
+      '<div class="ai-subject-bars">' +
+      analysis.subjectStats.map(s => '<div class="ai-bar-row"><span class="ai-bar-label">' + escapeHtml(s.name) + '</span>' +
+      '<div class="ai-bar-track"><div class="ai-bar-fill" style="width:' + s.pct + '%"></div></div>' +
+      '<span class="ai-bar-count">' + s.count + '篇</span></div>').join('') +
+      '</div>' +
+
+      // 热门关键词
+      '<div style="margin:16px 0 10px"><strong>🏷️ 高频关键词</strong></div>' +
+      '<div class="ai-keywords">' +
+      analysis.topKeywords.map(k => '<span class="ai-keyword-tag" style="font-size:' + (12 + k.weight * 4) + 'px;opacity:' + (0.5 + k.weight * 0.5) + '">' + escapeHtml(k.word) + '</span>').join(' ') +
+      '</div>' +
+
+      // 时间分布
+      '<div style="margin:16px 0 10px"><strong>📅 时间趋势</strong></div>' +
+      '<div class="ai-timeline">' +
+      analysis.timeline.map(t => '<div class="ai-timeline-item"><span class="ai-timeline-date">' + t.label + '</span>' +
+      '<span class="ai-timeline-dot" style="height:' + Math.max(6, t.count * 8) + 'px"></span>' +
+      '<span class="ai-timeline-count">' + t.count + '篇</span></div>').join('') +
+      '</div>' +
+
+      // 学习建议
+      '<div style="margin:16px 0 10px"><strong>💡 AI 学习建议</strong></div>' +
+      '<div class="ai-suggestions">' +
+      analysis.suggestions.map(s => '<div class="ai-suggestion-item">' + s + '</div>').join('') +
+      '</div>' +
+
+      '</div>' +
+      '</div>';
+  }
+
+  // 笔记列表
+  html += '<div class="card"><div class="card-title">📒 学习笔记 <button class="btn btn-small btn-primary" onclick="addNote()" style="margin-left:auto">+ 新建</button></div>' +
+    (notes.length === 0 ? '<div style="text-align:center;color:var(--text-muted);padding:20px">📒 还没有笔记，开始记录吧</div>' :
     notes.map(n => {
       const imgHtml = n.image ? '<div style="margin-top:4px"><img src="' + n.image + '" style="max-width:60px;max-height:60px;border-radius:4px;object-fit:cover"></div>' : '';
       return '<div class="task-item" style="cursor:pointer" onclick="viewNote(\'' + n.id + '\')"><div style="flex:1"><div style="font-weight:600">📌 ' + escapeHtml(n.title) + '</div>' +
@@ -971,6 +1022,145 @@ function renderNotes(container) {
       '<span style="cursor:pointer" onclick="event.stopPropagation();deleteNote(\'' + n.id + '\')">🗑️</span></div>';
     }).join('')) +
     '</div>';
+
+  container.innerHTML = html;
+}
+
+// ==================== AI 笔记分析 ====================
+function analyzeNotes(notes) {
+  const totalCount = notes.length;
+  const totalChars = notes.reduce((sum, n) => sum + (n.content || '').length, 0);
+
+  // 科目统计
+  const subjectMap = {};
+  notes.forEach(n => {
+    const subj = (n.subject || '未分类').trim() || '未分类';
+    subjectMap[subj] = (subjectMap[subj] || 0) + 1;
+  });
+  const maxCount = Math.max(...Object.values(subjectMap), 1);
+  const subjectStats = Object.entries(subjectMap)
+    .sort((a, b) => b[1] - a[1])
+    .map(([name, count]) => ({ name, count, pct: Math.round(count / maxCount * 100) }));
+  const subjectCount = Object.keys(subjectMap).length;
+
+  // 关键词提取（中英文分词）
+  const allText = notes.map(n => (n.title + ' ' + n.content).toLowerCase()).join(' ');
+  const keywordFreq = extractKeywords(allText);
+  const topKeywords = keywordFreq.slice(0, 20);
+  const maxWeight = topKeywords.length > 0 ? topKeywords[0].weight : 1;
+  topKeywords.forEach(k => k.weight = maxWeight > 0 ? k.weight / maxWeight : 0);
+  const keywordCount = keywordFreq.length;
+
+  // 时间趋势（按月分组）
+  const monthMap = {};
+  notes.forEach(n => {
+    const d = new Date(n.date);
+    const key = d.getFullYear() + '年' + (d.getMonth() + 1) + '月';
+    monthMap[key] = (monthMap[key] || 0) + 1;
+  });
+  const timeline = Object.entries(monthMap)
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .slice(-6)
+    .map(([label, count]) => ({ label, count }));
+
+  // AI 学习建议
+  const suggestions = generateSuggestions(notes, subjectStats, totalChars, totalCount);
+
+  return { totalCount, totalChars, subjectCount, keywordCount, subjectStats, topKeywords, timeline, suggestions };
+}
+
+function extractKeywords(text) {
+  // 停用词列表
+  const stopWords = new Set([
+    '的', '了', '在', '是', '我', '有', '和', '就', '不', '人', '都', '一', '一个', '上', '也', '很', '到', '说', '要', '去', '你',
+    '会', '着', '没有', '看', '好', '自己', '这', '他', '她', '它', '们', '那', '些', '什么', '怎么', '如何', '因为', '所以',
+    '但是', '而且', '虽然', '如果', '可以', '这个', '那个', '已经', '还是', '或者', '不过', '然后', '之后', '之前',
+    'the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did',
+    'will', 'would', 'could', 'should', 'may', 'might', 'can', 'shall', 'to', 'of', 'in', 'for', 'on', 'with', 'at',
+    'by', 'from', 'as', 'into', 'through', 'during', 'before', 'after', 'above', 'below', 'between', 'under', 'again',
+    'further', 'then', 'once', 'here', 'there', 'when', 'where', 'why', 'how', 'all', 'both', 'each', 'few', 'more',
+    'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than', 'too', 'very', 'just',
+    'about', 'also', 'but', 'and', 'or', 'it', 'its', 'that', 'this', 'these', 'those', 'which', 'who', 'whom'
+  ]);
+
+  const freqMap = {};
+  // 中文分词：提取连续中文字符（2-6字）
+  const chineseWords = text.match(/[\u4e00-\u9fa5]{2,6}/g) || [];
+  chineseWords.forEach(w => {
+    if (!stopWords.has(w)) freqMap[w] = (freqMap[w] || 0) + 1;
+  });
+  // 英文分词：提取连续英文字母（3字以上）
+  const englishWords = text.match(/[a-zA-Z]{3,}/g) || [];
+  englishWords.forEach(w => {
+    const lower = w.toLowerCase();
+    if (!stopWords.has(lower)) freqMap[lower] = (freqMap[lower] || 0) + 1;
+  });
+
+  return Object.entries(freqMap)
+    .filter(([, c]) => c >= 2)
+    .sort((a, b) => b[1] - a[1])
+    .map(([word, count]) => ({ word, weight: count }));
+}
+
+function generateSuggestions(notes, subjectStats, totalChars, totalCount) {
+  const suggestions = [];
+
+  // 科目平衡建议
+  if (subjectStats.length <= 1 && totalCount >= 3) {
+    suggestions.push('📂 你的笔记集中在单一科目，建议分散记录不同科目的知识点，构建完整知识体系');
+  }
+  if (subjectStats.length >= 3) {
+    const top = subjectStats[0];
+    const bottom = subjectStats[subjectStats.length - 1];
+    if (top.count >= bottom.count * 3) {
+      suggestions.push('⚖️ 科目「' + top.name + '」笔记最多，建议加强「' + bottom.name + '」的学习记录');
+    }
+  }
+
+  // 内容深度建议
+  const avgChars = totalCount > 0 ? Math.round(totalChars / totalCount) : 0;
+  if (avgChars < 50 && totalCount > 0) {
+    suggestions.push('📝 笔记平均字数较少（' + avgChars + '字），建议展开详细记录，加深理解');
+  } else if (avgChars > 500) {
+    suggestions.push('📋 笔记内容较丰富（均' + avgChars + '字），可尝试提炼要点，便于快速复习');
+  }
+
+  // 数量建议
+  if (totalCount < 3) {
+    suggestions.push('🚀 笔记数量较少，建议持续记录学习心得和重点知识');
+  } else if (totalCount >= 10) {
+    suggestions.push('🎯 已积累' + totalCount + '篇笔记，建议定期回顾复习，巩固记忆');
+  }
+
+  // 复习提醒
+  const now = new Date();
+  const oldNotes = notes.filter(n => (now - new Date(n.date)) / (1000 * 60 * 60 * 24) > 14);
+  if (oldNotes.length > 0) {
+    suggestions.push('🔄 有' + oldNotes.length + '篇笔记超过2周未更新，建议定期回顾加深记忆');
+  }
+
+  if (suggestions.length === 0) {
+    suggestions.push('👍 笔记记录良好，继续保持！');
+    suggestions.push('💪 坚持每天记录，积少成多，考研必胜！');
+  }
+
+  return suggestions;
+}
+
+function toggleAiDetail() {
+  const area = document.getElementById('aiDetailArea');
+  const icon = document.getElementById('aiToggleIcon');
+  const text = document.getElementById('aiToggleText');
+  if (!area) return;
+  if (area.style.display === 'none') {
+    area.style.display = 'block';
+    if (icon) icon.textContent = '📉';
+    if (text) text.textContent = '收起详情';
+  } else {
+    area.style.display = 'none';
+    if (icon) icon.textContent = '📊';
+    if (text) text.textContent = '展开详情';
+  }
 }
 function addNote() {
   showModal('新建笔记',
