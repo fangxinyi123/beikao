@@ -1,0 +1,49 @@
+name: 每日抓取外刊
+
+on:
+  schedule:
+    # 每天 UTC 01:00 运行（北京时间 09:00）
+    - cron: '0 1 * * *'
+  workflow_dispatch: # 支持手动触发
+
+permissions:
+  contents: write
+
+jobs:
+  fetch-readings:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 安装依赖
+        run: |
+          pip install -r scripts/requirements.txt
+
+      - name: 抓取外刊文章
+        env:
+          # AI 翻译为可选增强，不设置则使用免费翻译
+          AI_API_KEY: ${{ secrets.AI_API_KEY }}
+          AI_API_BASE: ${{ secrets.AI_API_BASE }}
+          AI_MODEL: ${{ secrets.AI_MODEL }}
+        run: |
+          python scripts/fetch_readings.py
+
+      - name: 检查是否有变更
+        id: check_changes
+        run: |
+          git diff --quiet data/readings.json || echo "has_changes=true" >> $GITHUB_OUTPUT
+
+      - name: 提交并推送
+        if: steps.check_changes.outputs.has_changes == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/readings.json
+          git commit -m "📰 自动更新外刊 $(date +%Y-%m-%d)"
+          git push

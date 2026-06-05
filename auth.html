@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>登录 - 不摆烂研习社</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.auth-container {
+  background: #fff;
+  border-radius: 20px;
+  padding: 40px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+.logo { text-align: center; margin-bottom: 30px; }
+.logo .icon { font-size: 48px; }
+.logo h1 { font-size: 24px; color: #333; margin-top: 8px; }
+.logo p { font-size: 13px; color: #999; margin-top: 4px; }
+.tabs {
+  display: flex;
+  margin-bottom: 24px;
+  background: #f5f5f5;
+  border-radius: 10px;
+  padding: 4px;
+}
+.tab {
+  flex: 1;
+  padding: 10px;
+  text-align: center;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #666;
+  transition: all 0.2s;
+}
+.tab.active { background: #667eea; color: #fff; }
+.form-group { margin-bottom: 16px; }
+.form-group label {
+  display: block;
+  font-size: 13px;
+  color: #555;
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+.form-group input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid #e8e8e8;
+  border-radius: 10px;
+  font-size: 15px;
+  transition: border-color 0.2s;
+  outline: none;
+}
+.form-group input:focus { border-color: #667eea; }
+.btn {
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 8px;
+}
+.btn-primary {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff;
+}
+.btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+.btn-outline {
+  background: #fff;
+  color: #667eea;
+  border: 2px solid #667eea;
+}
+.btn-outline:hover { background: #f8f7ff; }
+.divider {
+  text-align: center;
+  margin: 20px 0;
+  color: #ccc;
+  font-size: 13px;
+  position: relative;
+}
+.divider::before, .divider::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 40%;
+  height: 1px;
+  background: #eee;
+}
+.divider::before { left: 0; }
+.divider::after { right: 0; }
+.error-msg {
+  color: #e74c3c;
+  font-size: 13px;
+  margin-top: 8px;
+  display: none;
+  text-align: center;
+}
+.success-msg {
+  color: #27ae60;
+  font-size: 13px;
+  margin-top: 8px;
+  display: none;
+  text-align: center;
+}
+.form-panel { display: none; }
+.form-panel.active { display: block; }
+.nickname-hint {
+  font-size: 12px;
+  color: #999;
+  margin-top: 4px;
+}
+.import-section {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
+}
+.import-section h3 {
+  font-size: 14px;
+  color: #333;
+  margin-bottom: 12px;
+}
+.import-section p {
+  font-size: 12px;
+  color: #999;
+  margin-bottom: 8px;
+}
+</style>
+</head>
+<body>
+
+<div class="auth-container">
+  <div class="logo">
+    <div class="icon">📚</div>
+    <h1>不摆烂研习社</h1>
+    <p>考研备考 · 本地账号 · 数据随身带</p>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="login">登录</div>
+    <div class="tab" data-tab="register">注册</div>
+  </div>
+
+  <!-- 登录面板 -->
+  <div class="form-panel active" id="loginPanel">
+    <div class="form-group">
+      <label>用户名</label>
+      <input type="text" id="loginUsername" placeholder="请输入用户名">
+    </div>
+    <div class="form-group">
+      <label>密码</label>
+      <input type="password" id="loginPassword" placeholder="请输入密码">
+    </div>
+    <button class="btn btn-primary" onclick="handleLogin()">登 录</button>
+    <div class="error-msg" id="loginError"></div>
+    <div class="divider">或</div>
+    <button class="btn btn-outline" onclick="skipLogin()">跳过登录，本地使用</button>
+  </div>
+
+  <!-- 注册面板 -->
+  <div class="form-panel" id="registerPanel">
+    <div class="form-group">
+      <label>用户名</label>
+      <input type="text" id="regUsername" placeholder="给自己起个名字（字母/数字/中文）">
+      <div class="nickname-hint">用于登录，不可修改</div>
+    </div>
+    <div class="form-group">
+      <label>昵称</label>
+      <input type="text" id="regNickname" placeholder="在研友圈中显示的名字">
+      <div class="nickname-hint">可以随时修改</div>
+    </div>
+    <div class="form-group">
+      <label>密码</label>
+      <input type="password" id="regPassword" placeholder="至少4位密码">
+    </div>
+    <div class="form-group">
+      <label>确认密码</label>
+      <input type="password" id="regPassword2" placeholder="再次输入密码">
+    </div>
+    <button class="btn btn-primary" onclick="handleRegister()">注 册</button>
+    <div class="error-msg" id="regError"></div>
+    <div class="success-msg" id="regSuccess"></div>
+  </div>
+
+  <!-- 换设备：导入数据 -->
+  <div class="import-section">
+    <h3>📱 换设备？导入之前的数据</h3>
+    <p>在旧设备上登录后点击「导出数据」，把文件发到新设备，然后在这里导入。</p>
+    <input type="file" id="importFile" accept=".json" style="display:none" onchange="handleImport(event)">
+    <button class="btn btn-outline" onclick="document.getElementById('importFile').click()">📥 导入数据文件</button>
+    <div class="error-msg" id="importError"></div>
+    <div class="success-msg" id="importSuccess"></div>
+  </div>
+</div>
+
+<script>
+// ==================== 本地账号系统 ====================
+// 所有账号数据存在 localStorage 中
+// 结构：study_accounts = { "username1": { password: "hashed", nickname: "昵称", createdAt: "..." }, ... }
+
+function getAllAccounts() {
+  try {
+    return JSON.parse(localStorage.getItem('study_accounts') || '{}');
+  } catch { return {}; }
+}
+
+function saveAllAccounts(accounts) {
+  localStorage.setItem('study_accounts', JSON.stringify(accounts));
+}
+
+// 简单哈希（浏览器环境用，不是真正的安全加密，但足够防止明文存储）
+function simpleHash(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash |= 0;
+  }
+  return 'h_' + Math.abs(hash).toString(36);
+}
+
+// 检查是否已登录
+function getCurrentUser() {
+  try {
+    const raw = localStorage.getItem('study_current_user');
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+// Tab 切换
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    document.querySelectorAll('.form-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById(tab.dataset.tab === 'login' ? 'loginPanel' : 'registerPanel').classList.add('active');
+    hideErrors();
+  });
+});
+
+function hideErrors() {
+  ['loginError', 'regError', 'regSuccess', 'importError', 'importSuccess'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+}
+
+// 回车键提交
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    if (document.getElementById('loginPanel').classList.contains('active')) handleLogin();
+    else handleRegister();
+  }
+});
+
+// ==================== 登录 ====================
+function handleLogin() {
+  const username = document.getElementById('loginUsername').value.trim();
+  const password = document.getElementById('loginPassword').value.trim();
+  const errEl = document.getElementById('loginError');
+
+  if (!username || !password) {
+    errEl.textContent = '请填写用户名和密码';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const accounts = getAllAccounts();
+  const account = accounts[username];
+
+  if (!account) {
+    errEl.textContent = '用户不存在，请先注册';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  if (account.password !== simpleHash(password)) {
+    errEl.textContent = '密码错误';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  // 登录成功
+  const user = {
+    username: username,
+    nickname: account.nickname || username,
+    loginTime: new Date().toISOString()
+  };
+  localStorage.setItem('study_current_user', JSON.stringify(user));
+  localStorage.removeItem('study_auth_skip');
+  
+  // 切换到该用户的数据
+  switchToUserData(username);
+
+  window.location.href = 'index.html';
+}
+
+// ==================== 注册 ====================
+function handleRegister() {
+  const username = document.getElementById('regUsername').value.trim();
+  const nickname = document.getElementById('regNickname').value.trim();
+  const password = document.getElementById('regPassword').value.trim();
+  const password2 = document.getElementById('regPassword2').value.trim();
+  const errEl = document.getElementById('regError');
+  const sucEl = document.getElementById('regSuccess');
+
+  errEl.style.display = 'none';
+  sucEl.style.display = 'none';
+
+  if (!username || !nickname || !password) {
+    errEl.textContent = '请填写所有字段';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  // 用户名只能包含字母、数字、中文、下划线
+  if (!/^[\w\u4e00-\u9fa5]{2,20}$/.test(username)) {
+    errEl.textContent = '用户名需2-20位，只能包含字母、数字、中文和下划线';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  if (password.length < 4) {
+    errEl.textContent = '密码至少4位';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (password !== password2) {
+    errEl.textContent = '两次密码不一致';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const accounts = getAllAccounts();
+
+  if (accounts[username]) {
+    errEl.textContent = '用户名已存在，请换一个';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  // 创建账号
+  accounts[username] = {
+    password: simpleHash(password),
+    nickname: nickname,
+    createdAt: new Date().toISOString()
+  };
+  saveAllAccounts(accounts);
+
+  // 自动登录
+  const user = {
+    username: username,
+    nickname: nickname,
+    loginTime: new Date().toISOString()
+  };
+  localStorage.setItem('study_current_user', JSON.stringify(user));
+  localStorage.removeItem('study_auth_skip');
+
+  sucEl.textContent = '注册成功！正在跳转...';
+  sucEl.style.display = 'block';
+  setTimeout(() => { window.location.href = 'index.html'; }, 800);
+}
+
+// ==================== 跳过登录 ====================
+function skipLogin() {
+  localStorage.setItem('study_auth_skip', 'true');
+  localStorage.removeItem('study_current_user');
+  window.location.href = 'index.html';
+}
+
+// ==================== 导入数据（换设备用）====================
+function handleImport(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      const errEl = document.getElementById('importError');
+      const sucEl = document.getElementById('importSuccess');
+
+      errEl.style.display = 'none';
+      sucEl.style.display = 'none';
+
+      // 验证数据格式
+      if (!data.exportType || data.exportType !== 'beikao_backup') {
+        errEl.textContent = '无效的数据文件格式';
+        errEl.style.display = 'block';
+        return;
+      }
+
+      // 导入账号
+      if (data.accounts) {
+        const existing = getAllAccounts();
+        const merged = { ...existing, ...data.accounts };
+        saveAllAccounts(merged);
+      }
+
+      // 导入当前用户数据（直接覆盖本地数据）
+      if (data.username && data.userData) {
+        // 保存到用户专属存储
+        const allUserData = JSON.parse(localStorage.getItem('study_all_user_data') || '{}');
+        allUserData[data.username] = data.userData;
+        localStorage.setItem('study_all_user_data', JSON.stringify(allUserData));
+      }
+
+      sucEl.textContent = '数据导入成功！请用原来的账号登录。';
+      sucEl.style.display = 'block';
+
+      // 如果当前有登录用户且和导入的用户名相同，刷新页面
+      const currentUser = getCurrentUser();
+      if (currentUser && currentUser.username === data.username) {
+        switchToUserData(data.username);
+        setTimeout(() => { window.location.href = 'index.html'; }, 1000);
+      }
+
+    } catch (err) {
+      const errEl = document.getElementById('importError');
+      errEl.textContent = '文件解析失败：' + err.message;
+      errEl.style.display = 'block';
+    }
+  };
+  reader.readAsText(file);
+}
+
+// ==================== 切换到用户专属数据 ====================
+function switchToUserData(username) {
+  const allUserData = JSON.parse(localStorage.getItem('study_all_user_data') || '{}');
+  const userData = allUserData[username];
+  
+  if (userData) {
+    // 恢复用户数据到 study_* 键
+    Object.keys(userData).forEach(key => {
+      localStorage.setItem('study_' + key, JSON.stringify(userData[key]));
+    });
+  }
+  // 没有数据就保留当前的（新用户）
+}
+</script>
+
+</body>
+</html>

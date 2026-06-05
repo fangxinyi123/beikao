@@ -1,0 +1,39 @@
+name: 每日抓取中国日报双语新闻
+
+on:
+  schedule:
+    # 每天 UTC 22:00 运行（北京时间早上 6:00）
+    - cron: '0 22 * * *'
+  # 允许手动触发
+  workflow_dispatch:
+
+jobs:
+  fetch-news:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 安装依赖
+        run: |
+          pip install -r scripts/requirements.txt
+
+      - name: 运行抓取脚本
+        run: |
+          python3 scripts/fetch_readings.py
+
+      - name: 提交更新
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add data/readings.json
+          git diff --staged --quiet || git commit -m "📰 每日自动更新：中国日报英语点津双语新闻 ($(date +%Y-%m-%d))"
+          git push
