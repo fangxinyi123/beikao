@@ -304,37 +304,37 @@ const CloudSync = {
 
 // ==================== 页面认证检查 ====================
 async function checkAuthAndInit() {
-  // 尝试初始化 Supabase
-  initSupabase();
-
   // 检查是否跳过登录
   if (Auth.isSkipped()) return true;
 
-  // 检查 Supabase 会话
-  if (supabase) {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.user) {
-      // 有有效会话，拉取云端数据
-      await CloudSync.pullFromCloud(session.user.id);
-
-      // 保存本地用户信息
-      const nickname = session.user.user_metadata?.nickname || session.user.email || '研友';
-      localStorage.setItem('study_current_user', JSON.stringify({
-        username: session.user.email || session.user.id,
-        nickname: nickname,
-        userId: session.user.id,
-        loginTime: new Date().toISOString()
-      }));
-
-      return true;
-    }
-  }
-
-  // 检查本地登录
+  // 检查本地登录（优先，秒级响应）
   const localUser = _localGetUser();
-  if (localUser) {
-    // 迁移：如果有本地账号但 Supabase 可用，提示升级
-    return true;
+  if (localUser) return true;
+
+  // Supabase 会话检查放在最后，带超时保护
+  initSupabase();
+  if (supabase) {
+    try {
+      // 用 Promise.race 加超时，避免 Supabase 不可用时卡死
+      const result = await Promise.race([
+        supabase.auth.getSession(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000))
+      ]);
+      const session = result?.data?.session;
+      if (session?.user) {
+        await CloudSync.pullFromCloud(session.user.id);
+        const nickname = session.user.user_metadata?.nickname || session.user.email || '研友';
+        localStorage.setItem('study_current_user', JSON.stringify({
+          username: session.user.email || session.user.id,
+          nickname: nickname,
+          userId: session.user.id,
+          loginTime: new Date().toISOString()
+        }));
+        return true;
+      }
+    } catch (e) {
+      console.log('Supabase 会话检查超时或失败，使用本地模式');
+    }
   }
 
   // 未登录，跳转
