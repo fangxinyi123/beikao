@@ -1,0 +1,1429 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>网页备忘 - 个人备忘录</title>
+    <style>
+        :root {
+            --bg: #f5f6fa;
+            --card-bg: #ffffff;
+            --text: #2d3436;
+            --text-secondary: #636e72;
+            --primary: #6c5ce7;
+            --primary-light: #a29bfe;
+            --success: #00b894;
+            --warning: #fdcb6e;
+            --danger: #d63031;
+            --border: #e0e0e0;
+            --shadow: 0 2px 12px rgba(0,0,0,0.08);
+            --radius: 12px;
+            --transition: 0.2s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        /* 顶部导航栏 */
+        .navbar {
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 0 24px;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: var(--shadow);
+        }
+
+        .navbar .logo {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .navbar .logo svg {
+            width: 24px;
+            height: 24px;
+        }
+
+        .navbar .nav-links {
+            display: flex;
+            gap: 24px;
+        }
+
+        .navbar .nav-links a {
+            text-decoration: none;
+            color: var(--text-secondary);
+            font-size: 14px;
+            padding: 6px 12px;
+            border-radius: 6px;
+            transition: var(--transition);
+        }
+
+        .navbar .nav-links a:hover,
+        .navbar .nav-links a.active {
+            color: var(--primary);
+            background: rgba(108, 92, 231, 0.08);
+        }
+
+        /* 主布局 */
+        .main-container {
+            display: flex;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px;
+            gap: 24px;
+        }
+
+        /* 侧边栏 */
+        .sidebar {
+            width: 280px;
+            flex-shrink: 0;
+        }
+
+        .sidebar-section {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: var(--shadow);
+        }
+
+        .sidebar-section h3 {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .sidebar-menu {
+            list-style: none;
+        }
+
+        .sidebar-menu li {
+            padding: 10px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            color: var(--text);
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 2px;
+        }
+
+        .sidebar-menu li:hover {
+            background: rgba(108, 92, 231, 0.06);
+            color: var(--primary);
+        }
+
+        .sidebar-menu li.active {
+            background: rgba(108, 92, 231, 0.1);
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .sidebar-menu li .count {
+            margin-left: auto;
+            background: #e8e8e8;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .sidebar-menu li.active .count {
+            background: var(--primary-light);
+            color: #fff;
+        }
+
+        /* 主内容区 */
+        .content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        /* 统计卡片行 */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            transition: transform var(--transition), box-shadow var(--transition);
+            cursor: default;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+        }
+
+        .stat-card .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .stat-card .stat-icon svg {
+            width: 24px;
+            height: 24px;
+        }
+
+        .stat-card:nth-child(1) .stat-icon {
+            background: rgba(108, 92, 231, 0.12);
+            color: var(--primary);
+        }
+
+        .stat-card:nth-child(2) .stat-icon {
+            background: rgba(0, 184, 148, 0.12);
+            color: var(--success);
+        }
+
+        .stat-card:nth-child(3) .stat-icon {
+            background: rgba(253, 203, 110, 0.15);
+            color: #e17055;
+        }
+
+        .stat-card .stat-info h4 {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .stat-card .stat-info .stat-number {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text);
+            line-height: 1;
+        }
+
+        /* 提醒横幅 */
+        .reminder-banner {
+            background: linear-gradient(135deg, #fff3cd, #ffeaa7);
+            border: 1px solid #fdcb6e;
+            border-radius: var(--radius);
+            padding: 14px 20px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: var(--shadow);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 2px 12px rgba(253, 203, 110, 0.3); }
+            50% { box-shadow: 0 2px 20px rgba(253, 203, 110, 0.6); }
+        }
+
+        .reminder-banner .reminder-icon {
+            font-size: 24px;
+            flex-shrink: 0;
+        }
+
+        .reminder-banner .reminder-text {
+            flex: 1;
+            font-size: 14px;
+            color: #856404;
+        }
+
+        .reminder-banner .reminder-text strong {
+            color: #d63031;
+        }
+
+        .reminder-banner .reminder-close {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 18px;
+            color: #856404;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: var(--transition);
+        }
+
+        .reminder-banner .reminder-close:hover {
+            background: rgba(0,0,0,0.08);
+        }
+
+        /* 备忘输入区 */
+        .memo-input-area {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+        }
+
+        .memo-input-area h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: var(--text);
+        }
+
+        .input-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .input-row input,
+        .input-row textarea {
+            flex: 1;
+            padding: 10px 14px;
+            border: 1.5px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: var(--transition);
+            outline: none;
+            color: var(--text);
+        }
+
+        .input-row input:focus,
+        .input-row textarea:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.1);
+        }
+
+        .input-row textarea {
+            resize: vertical;
+            min-height: 60px;
+        }
+
+        .date-priority-row {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .date-priority-row input[type="date"] {
+            padding: 10px 14px;
+            border: 1.5px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+            transition: var(--transition);
+            color: var(--text);
+        }
+
+        .date-priority-row input[type="date"]:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.1);
+        }
+
+        .date-priority-row select {
+            padding: 10px 14px;
+            border: 1.5px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+            transition: var(--transition);
+            background: #fff;
+            cursor: pointer;
+            color: var(--text);
+        }
+
+        .date-priority-row select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.1);
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            background: #5a4bd1;
+            transform: translateY(-1px);
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1.5px solid var(--border);
+            color: var(--text-secondary);
+        }
+
+        .btn-outline:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+            border-radius: 6px;
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: #fff;
+        }
+
+        .btn-success:hover {
+            background: #00a381;
+        }
+
+        .btn-danger {
+            background: transparent;
+            color: var(--danger);
+            border: 1.5px solid var(--danger);
+        }
+
+        .btn-danger:hover {
+            background: var(--danger);
+            color: #fff;
+        }
+
+        .btn-warning {
+            background: var(--warning);
+            color: #856404;
+        }
+
+        .btn-warning:hover {
+            background: #fdcb4e;
+        }
+
+        /* 备忘列表 */
+        .memo-list-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .memo-list-header h3 {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .memo-list-header .filter-btns {
+            display: flex;
+            gap: 6px;
+        }
+
+        .filter-btn {
+            padding: 6px 14px;
+            border: 1.5px solid var(--border);
+            border-radius: 20px;
+            font-size: 13px;
+            cursor: pointer;
+            background: #fff;
+            color: var(--text-secondary);
+            transition: var(--transition);
+        }
+
+        .filter-btn.active {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+        }
+
+        .filter-btn:hover:not(.active) {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .memo-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .memo-item {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 16px 20px;
+            box-shadow: var(--shadow);
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            transition: var(--transition);
+            border-left: 4px solid transparent;
+            position: relative;
+        }
+
+        .memo-item:hover {
+            box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+        }
+
+        .memo-item.priority-high {
+            border-left-color: var(--danger);
+        }
+
+        .memo-item.priority-medium {
+            border-left-color: var(--warning);
+        }
+
+        .memo-item.priority-low {
+            border-left-color: #b2bec3;
+        }
+
+        .memo-item.completed {
+            opacity: 0.7;
+        }
+
+        .memo-item.completed .memo-title {
+            text-decoration: line-through;
+            color: var(--text-secondary);
+        }
+
+        .memo-checkbox {
+            width: 22px;
+            height: 22px;
+            border: 2px solid #ccc;
+            border-radius: 50%;
+            cursor: pointer;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+            margin-top: 2px;
+        }
+
+        .memo-checkbox:hover {
+            border-color: var(--success);
+        }
+
+        .memo-checkbox.checked {
+            background: var(--success);
+            border-color: var(--success);
+        }
+
+        .memo-checkbox.checked::after {
+            content: '✓';
+            color: #fff;
+            font-size: 13px;
+            font-weight: bold;
+        }
+
+        .memo-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .memo-title {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            word-break: break-word;
+        }
+
+        .memo-desc {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+            word-break: break-word;
+        }
+
+        .memo-meta {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .memo-meta span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .memo-deadline {
+            font-weight: 600;
+        }
+
+        .memo-deadline.overdue {
+            color: var(--danger);
+        }
+
+        .memo-deadline.soon {
+            color: #e17055;
+        }
+
+        .memo-actions {
+            display: flex;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .badge-high {
+            background: rgba(214, 48, 49, 0.1);
+            color: var(--danger);
+        }
+
+        .badge-medium {
+            background: rgba(253, 203, 110, 0.2);
+            color: #856404;
+        }
+
+        .badge-low {
+            background: rgba(178, 190, 195, 0.2);
+            color: #636e72;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-secondary);
+        }
+
+        .empty-state svg {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 16px;
+            opacity: 0.4;
+        }
+
+        .empty-state p {
+            font-size: 14px;
+        }
+
+        /* 弹窗 */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+            animation: fadeIn 0.2s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal {
+            background: #fff;
+            border-radius: var(--radius);
+            padding: 24px;
+            width: 420px;
+            max-width: 90vw;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            animation: slideUp 0.2s ease;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .modal h3 {
+            font-size: 18px;
+            margin-bottom: 16px;
+        }
+
+        .modal .form-group {
+            margin-bottom: 14px;
+        }
+
+        .modal .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+
+        .modal .form-group input,
+        .modal .form-group textarea,
+        .modal .form-group select {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1.5px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            outline: none;
+            transition: var(--transition);
+        }
+
+        .modal .form-group input:focus,
+        .modal .form-group textarea:focus,
+        .modal .form-group select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.1);
+        }
+
+        .modal .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--success);
+            color: #fff;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+            z-index: 300;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* 响应式 */
+        @media (max-width: 900px) {
+            .main-container {
+                flex-direction: column;
+                padding: 16px;
+            }
+            .sidebar {
+                width: 100%;
+            }
+            .stats-row {
+                grid-template-columns: repeat(3, 1fr);
+            }
+            .memo-actions {
+                flex-direction: column;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .stats-row {
+                grid-template-columns: 1fr;
+            }
+            .date-priority-row {
+                flex-direction: column;
+            }
+            .memo-item {
+                flex-direction: column;
+            }
+            .memo-actions {
+                flex-direction: row;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <nav class="navbar">
+        <div class="logo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="18" height="18" rx="3" />
+                <line x1="8" y1="8" x2="16" y2="8" />
+                <line x1="8" y1="12" x2="16" y2="12" />
+                <line x1="8" y1="16" x2="12" y2="16" />
+            </svg>
+            网页备忘
+        </div>
+        <div class="nav-links">
+            <a href="#" class="active">我的备忘</a>
+            <a href="#">已完成</a>
+            <a href="#">设置</a>
+        </div>
+    </nav>
+
+    <!-- 主布局 -->
+    <div class="main-container">
+        <!-- 侧边栏 -->
+        <aside class="sidebar">
+            <div class="sidebar-section">
+                <h3>分类</h3>
+                <ul class="sidebar-menu" id="categoryMenu">
+                    <li class="active" data-category="all">
+                        📋 全部备忘
+                        <span class="count" id="countAll">0</span>
+                    </li>
+                    <li data-category="pending">
+                        ⏳ 待处理
+                        <span class="count" id="countPending">0</span>
+                    </li>
+                    <li data-category="completed">
+                        ✅ 已完成
+                        <span class="count" id="countCompleted">0</span>
+                    </li>
+                    <li data-category="overdue">
+                        🔴 已过期
+                        <span class="count" id="countOverdue">0</span>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>优先级</h3>
+                <ul class="sidebar-menu" id="priorityMenu">
+                    <li data-priority="all">📊 全部优先级</li>
+                    <li data-priority="high">🔴 高优先级</li>
+                    <li data-priority="medium">🟡 中优先级</li>
+                    <li data-priority="low">🟢 低优先级</li>
+                </ul>
+            </div>
+        </aside>
+
+        <!-- 主内容区 -->
+        <main class="content">
+            <!-- 统计卡片 -->
+            <div class="stats-row">
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 5v14M5 12h14" />
+                        </svg>
+                    </div>
+                    <div class="stat-info">
+                        <h4>本月新增</h4>
+                        <div class="stat-number" id="statNewThisMonth">0</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                    </div>
+                    <div class="stat-info">
+                        <h4>已完成</h4>
+                        <div class="stat-number" id="statCompleted">0</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="12" y1="8" x2="12" y2="12" />
+                            <line x1="12" y1="16" x2="12.01" y2="16" />
+                        </svg>
+                    </div>
+                    <div class="stat-info">
+                        <h4>待查看</h4>
+                        <div class="stat-number" id="statPending">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 即将到期提醒 -->
+            <div class="reminder-banner" id="reminderBanner" style="display:none;">
+                <div class="reminder-icon">⏰</div>
+                <div class="reminder-text" id="reminderText"></div>
+                <button class="reminder-close" onclick="dismissReminder()">✕</button>
+            </div>
+
+            <!-- 备忘输入区 -->
+            <div class="memo-input-area">
+                <h3>✍️ 新建备忘</h3>
+                <div class="input-row">
+                    <input type="text" id="memoTitleInput" placeholder="备忘标题..." maxlength="100">
+                </div>
+                <div class="input-row">
+                    <textarea id="memoDescInput" placeholder="备忘内容（可选）..." rows="2"></textarea>
+                </div>
+                <div class="date-priority-row">
+                    <input type="date" id="memoDeadlineInput" placeholder="截止日期">
+                    <select id="memoPriorityInput">
+                        <option value="low">🟢 低优先级</option>
+                        <option value="medium" selected>🟡 中优先级</option>
+                        <option value="high">🔴 高优先级</option>
+                    </select>
+                    <button class="btn btn-primary" onclick="addMemo()">
+                        ➕ 添加备忘
+                    </button>
+                </div>
+            </div>
+
+            <!-- 备忘列表 -->
+            <div class="memo-list-header">
+                <h3 id="listTitle">📋 全部备忘</h3>
+                <div class="filter-btns">
+                    <button class="filter-btn active" data-filter="all" onclick="setFilter('all', this)">全部</button>
+                    <button class="filter-btn" data-filter="pending" onclick="setFilter('pending', this)">待处理</button>
+                    <button class="filter-btn" data-filter="completed" onclick="setFilter('completed', this)">已完成</button>
+                </div>
+            </div>
+            <div class="memo-list" id="memoList">
+                <div class="empty-state">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <rect x="3" y="3" width="18" height="18" rx="3" />
+                        <line x1="8" y1="8" x2="16" y2="8" />
+                        <line x1="8" y1="12" x2="16" y2="12" />
+                        <line x1="8" y1="16" x2="12" y2="16" />
+                    </svg>
+                    <p>暂无备忘，开始添加第一条吧 ✨</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 编辑弹窗 -->
+    <div class="modal-overlay" id="editModal" style="display:none;">
+        <div class="modal">
+            <h3>✏️ 编辑备忘</h3>
+            <div class="form-group">
+                <label>标题</label>
+                <input type="text" id="editTitle" maxlength="100">
+            </div>
+            <div class="form-group">
+                <label>内容</label>
+                <textarea id="editDesc" rows="3"></textarea>
+            </div>
+            <div class="form-group">
+                <label>截止日期</label>
+                <input type="date" id="editDeadline">
+            </div>
+            <div class="form-group">
+                <label>优先级</label>
+                <select id="editPriority">
+                    <option value="low">🟢 低优先级</option>
+                    <option value="medium">🟡 中优先级</option>
+                    <option value="high">🔴 高优先级</option>
+                </select>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-outline" onclick="closeEditModal()">取消</button>
+                <button class="btn btn-primary" onclick="saveEdit()">💾 保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast" style="display:none;"></div>
+
+    <script>
+        // ========== 数据管理 ==========
+        const STORAGE_KEY = 'web_memo_data';
+        let memos = [];
+        let currentFilter = 'all';
+        let currentCategory = 'all';
+        let currentPriority = 'all';
+        let editingId = null;
+        let reminderDismissed = false;
+
+        function loadMemos() {
+            const data = localStorage.getItem(STORAGE_KEY);
+            if (data) {
+                memos = JSON.parse(data);
+            } else {
+                // 初始化示例数据
+                const today = new Date();
+                const tomorrow = new Date(today);
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                const yesterday = new Date(today);
+                yesterday.setDate(yesterday.getDate() - 1);
+                const nextWeek = new Date(today);
+                nextWeek.setDate(nextWeek.getDate() + 7);
+
+                memos = [
+                    {
+                        id: 1,
+                        title: '完成季度报告',
+                        desc: '整理Q2数据并撰写分析报告',
+                        deadline: formatDate(tomorrow),
+                        priority: 'high',
+                        completed: false,
+                        createdAt: formatDate(new Date(today.getFullYear(), today.getMonth(), 1))
+                    },
+                    {
+                        id: 2,
+                        title: '预约牙医检查',
+                        desc: '每年定期检查牙齿',
+                        deadline: formatDate(nextWeek),
+                        priority: 'medium',
+                        completed: false,
+                        createdAt: formatDate(today)
+                    },
+                    {
+                        id: 3,
+                        title: '购买生日礼物',
+                        desc: '准备妈妈的生日礼物',
+                        deadline: formatDate(yesterday),
+                        priority: 'high',
+                        completed: false,
+                        createdAt: formatDate(today)
+                    },
+                    {
+                        id: 4,
+                        title: '整理书架',
+                        desc: '把不看的书捐赠出去',
+                        deadline: '',
+                        priority: 'low',
+                        completed: true,
+                        createdAt: formatDate(new Date(today.getFullYear(), today.getMonth(), 3))
+                    },
+                    {
+                        id: 5,
+                        title: '回复客户邮件',
+                        desc: '关于项目进度的邮件需要回复',
+                        deadline: formatDate(today),
+                        priority: 'medium',
+                        completed: false,
+                        createdAt: formatDate(today)
+                    }
+                ];
+                saveMemos();
+            }
+        }
+
+        function saveMemos() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(memos));
+        }
+
+        function formatDate(date) {
+            if (!date) return '';
+            const d = new Date(date);
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        function formatDisplayDate(dateStr) {
+            if (!dateStr) return '';
+            const d = new Date(dateStr);
+            const month = d.getMonth() + 1;
+            const day = d.getDate();
+            return `${month}月${day}日`;
+        }
+
+        function getToday() {
+            return formatDate(new Date());
+        }
+
+        function isOverdue(dateStr) {
+            if (!dateStr) return false;
+            return dateStr < getToday();
+        }
+
+        function isSoon(dateStr) {
+            if (!dateStr) return false;
+            const today = new Date();
+            const deadline = new Date(dateStr);
+            const diffDays = Math.ceil((deadline - today) / (1000 * 60 * 60 * 24));
+            return diffDays >= 0 && diffDays <= 2;
+        }
+
+        // ========== 统计计算 ==========
+        function getStats() {
+            const now = new Date();
+            const thisMonth = now.getMonth();
+            const thisYear = now.getFullYear();
+
+            const newThisMonth = memos.filter(m => {
+                const d = new Date(m.createdAt);
+                return d.getMonth() === thisMonth && d.getFullYear() === thisYear;
+            }).length;
+
+            const completed = memos.filter(m => m.completed).length;
+            const pending = memos.filter(m => !m.completed).length;
+
+            return { newThisMonth, completed, pending };
+        }
+
+        function getReminders() {
+            const today = getToday();
+            const overdue = memos.filter(m => !m.completed && m.deadline && m.deadline < today);
+            const soon = memos.filter(m => !m.completed && m.deadline && m.deadline >= today && isSoon(m.deadline));
+            return { overdue, soon };
+        }
+
+        // ========== UI更新 ==========
+        function updateStats() {
+            const stats = getStats();
+            document.getElementById('statNewThisMonth').textContent = stats.newThisMonth;
+            document.getElementById('statCompleted').textContent = stats.completed;
+            document.getElementById('statPending').textContent = stats.pending;
+        }
+
+        function updateSidebar() {
+            const allCount = memos.length;
+            const completedCount = memos.filter(m => m.completed).length;
+            const pendingCount = memos.filter(m => !m.completed).length;
+            const overdueCount = memos.filter(m => !m.completed && m.deadline && isOverdue(m.deadline)).length;
+
+            document.getElementById('countAll').textContent = allCount;
+            document.getElementById('countCompleted').textContent = completedCount;
+            document.getElementById('countPending').textContent = pendingCount;
+            document.getElementById('countOverdue').textContent = overdueCount;
+        }
+
+        function updateReminderBanner() {
+            const { overdue, soon } = getReminders();
+            const banner = document.getElementById('reminderBanner');
+            const text = document.getElementById('reminderText');
+
+            if (reminderDismissed) {
+                banner.style.display = 'none';
+                return;
+            }
+
+            let messages = [];
+            if (overdue.length > 0) {
+                const names = overdue.slice(0, 3).map(m => m.title).join('、');
+                const more = overdue.length > 3 ? `等${overdue.length}条` : '';
+                messages.push(`🔴 <strong>${overdue.length}条备忘已过期</strong>：${names}${more}`);
+            }
+            if (soon.length > 0) {
+                const names = soon.slice(0, 3).map(m => m.title).join('、');
+                const more = soon.length > 3 ? `等${soon.length}条` : '';
+                messages.push(`🟡 <strong>${soon.length}条备忘即将到期</strong>：${names}${more}`);
+            }
+
+            if (messages.length > 0) {
+                text.innerHTML = messages.join('&nbsp;&nbsp;|&nbsp;&nbsp;');
+                banner.style.display = 'flex';
+            } else {
+                banner.style.display = 'none';
+            }
+        }
+
+        function renderMemos() {
+            const list = document.getElementById('memoList');
+            let filtered = [...memos];
+
+            // 应用分类筛选
+            if (currentCategory === 'completed') {
+                filtered = filtered.filter(m => m.completed);
+            } else if (currentCategory === 'pending') {
+                filtered = filtered.filter(m => !m.completed);
+            } else if (currentCategory === 'overdue') {
+                filtered = filtered.filter(m => !m.completed && m.deadline && isOverdue(m.deadline));
+            }
+
+            // 应用优先级筛选
+            if (currentPriority !== 'all') {
+                filtered = filtered.filter(m => m.priority === currentPriority);
+            }
+
+            // 应用状态筛选
+            if (currentFilter === 'completed') {
+                filtered = filtered.filter(m => m.completed);
+            } else if (currentFilter === 'pending') {
+                filtered = filtered.filter(m => !m.completed);
+            }
+
+            if (filtered.length === 0) {
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <rect x="3" y="3" width="18" height="18" rx="3" />
+                            <line x1="8" y1="8" x2="16" y2="8" />
+                            <line x1="8" y1="12" x2="16" y2="12" />
+                            <line x1="8" y1="16" x2="12" y2="16" />
+                        </svg>
+                        <p>暂无备忘 📝</p>
+                    </div>
+                `;
+            } else {
+                list.innerHTML = filtered.map(m => {
+                    const deadlineClass = !m.completed && m.deadline
+                        ? (isOverdue(m.deadline) ? 'overdue' : (isSoon(m.deadline) ? 'soon' : ''))
+                        : '';
+                    const deadlineText = m.deadline
+                        ? (isOverdue(m.deadline) && !m.completed
+                            ? `已过期 ${formatDisplayDate(m.deadline)}`
+                            : `截止 ${formatDisplayDate(m.deadline)}`)
+                        : '无截止日期';
+
+                    const priorityBadge = {
+                        high: '<span class="badge badge-high">高</span>',
+                        medium: '<span class="badge badge-medium">中</span>',
+                        low: '<span class="badge badge-low">低</span>'
+                    }[m.priority] || '';
+
+                    return `
+                        <div class="memo-item priority-${m.priority} ${m.completed ? 'completed' : ''}">
+                            <div class="memo-checkbox ${m.completed ? 'checked' : ''}"
+                                 onclick="toggleMemo(${m.id})"
+                                 title="${m.completed ? '标记为未完成' : '标记为已完成'}">
+                            </div>
+                            <div class="memo-content">
+                                <div class="memo-title">${escapeHtml(m.title)} ${priorityBadge}</div>
+                                ${m.desc ? `<div class="memo-desc">${escapeHtml(m.desc)}</div>` : ''}
+                                <div class="memo-meta">
+                                    <span class="memo-deadline ${deadlineClass}">
+                                        📅 ${deadlineText}
+                                    </span>
+                                    <span>📝 创建于 ${formatDisplayDate(m.createdAt)}</span>
+                                </div>
+                            </div>
+                            <div class="memo-actions">
+                                <button class="btn btn-outline btn-sm" onclick="openEditModal(${m.id})">✏️</button>
+                                <button class="btn btn-danger btn-sm" onclick="deleteMemo(${m.id})">🗑️</button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            updateStats();
+            updateSidebar();
+            updateReminderBanner();
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        // ========== 操作 ==========
+        function addMemo() {
+            const titleInput = document.getElementById('memoTitleInput');
+            const descInput = document.getElementById('memoDescInput');
+            const deadlineInput = document.getElementById('memoDeadlineInput');
+            const priorityInput = document.getElementById('memoPriorityInput');
+
+            const title = titleInput.value.trim();
+            if (!title) {
+                showToast('⚠️ 请输入备忘标题');
+                titleInput.focus();
+                return;
+            }
+
+            const memo = {
+                id: Date.now(),
+                title: title,
+                desc: descInput.value.trim(),
+                deadline: deadlineInput.value,
+                priority: priorityInput.value,
+                completed: false,
+                createdAt: getToday()
+            };
+
+            memos.unshift(memo);
+            saveMemos();
+
+            // 清空输入
+            titleInput.value = '';
+            descInput.value = '';
+            deadlineInput.value = '';
+            priorityInput.value = 'medium';
+
+            renderMemos();
+            showToast('✅ 备忘添加成功！');
+            titleInput.focus();
+        }
+
+        function toggleMemo(id) {
+            const memo = memos.find(m => m.id === id);
+            if (memo) {
+                memo.completed = !memo.completed;
+                saveMemos();
+                renderMemos();
+
+                const status = memo.completed ? '已完成 ✅' : '已恢复 ⏳';
+                showToast(`${status}：${memo.title}`);
+            }
+        }
+
+        function deleteMemo(id) {
+            const memo = memos.find(m => m.id === id);
+            if (memo && confirm(`确定要删除备忘「${memo.title}」吗？`)) {
+                memos = memos.filter(m => m.id !== id);
+                saveMemos();
+                renderMemos();
+                showToast('🗑️ 备忘已删除');
+            }
+        }
+
+        function openEditModal(id) {
+            const memo = memos.find(m => m.id === id);
+            if (!memo) return;
+
+            editingId = id;
+            document.getElementById('editTitle').value = memo.title;
+            document.getElementById('editDesc').value = memo.desc || '';
+            document.getElementById('editDeadline').value = memo.deadline || '';
+            document.getElementById('editPriority').value = memo.priority;
+            document.getElementById('editModal').style.display = 'flex';
+        }
+
+        function closeEditModal() {
+            editingId = null;
+            document.getElementById('editModal').style.display = 'none';
+        }
+
+        function saveEdit() {
+            const memo = memos.find(m => m.id === editingId);
+            if (!memo) return;
+
+            const newTitle = document.getElementById('editTitle').value.trim();
+            if (!newTitle) {
+                showToast('⚠️ 标题不能为空');
+                return;
+            }
+
+            memo.title = newTitle;
+            memo.desc = document.getElementById('editDesc').value.trim();
+            memo.deadline = document.getElementById('editDeadline').value;
+            memo.priority = document.getElementById('editPriority').value;
+
+            saveMemos();
+            closeEditModal();
+            renderMemos();
+            showToast('✅ 备忘已更新');
+        }
+
+        function dismissReminder() {
+            reminderDismissed = true;
+            updateReminderBanner();
+        }
+
+        function setFilter(filter, btn) {
+            currentFilter = filter;
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            const titles = {
+                all: '📋 全部备忘',
+                pending: '⏳ 待处理备忘',
+                completed: '✅ 已完成备忘'
+            };
+            document.getElementById('listTitle').textContent = titles[filter];
+
+            renderMemos();
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.style.display = 'block';
+
+            clearTimeout(toast._timeout);
+            toast._timeout = setTimeout(() => {
+                toast.style.display = 'none';
+            }, 2000);
+        }
+
+        // ========== 事件监听 ==========
+        document.getElementById('editModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeEditModal();
+            }
+        });
+
+        // 侧边栏分类点击
+        document.getElementById('categoryMenu').addEventListener('click', function(e) {
+            const li = e.target.closest('li');
+            if (!li) return;
+            currentCategory = li.dataset.category;
+            document.querySelectorAll('#categoryMenu li').forEach(l => l.classList.remove('active'));
+            li.classList.add('active');
+            renderMemos();
+        });
+
+        // 侧边栏优先级点击
+        document.getElementById('priorityMenu').addEventListener('click', function(e) {
+            const li = e.target.closest('li');
+            if (!li) return;
+            currentPriority = li.dataset.priority;
+            document.querySelectorAll('#priorityMenu li').forEach(l => l.classList.remove('active'));
+            li.classList.add('active');
+            renderMemos();
+        });
+
+        // 键盘快捷键
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeEditModal();
+            }
+            if (e.ctrlKey && e.key === 'n') {
+                e.preventDefault();
+                document.getElementById('memoTitleInput').focus();
+            }
+        });
+
+        // 回车添加备忘
+        document.getElementById('memoTitleInput').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                addMemo();
+            }
+        });
+
+        // 定时检查提醒
+        setInterval(() => {
+            updateReminderBanner();
+        }, 60000); // 每分钟检查一次
+
+        // ========== 初始化 ==========
+        loadMemos();
+        renderMemos();
+
+        // 设置截止日期默认值为今天
+        document.getElementById('memoDeadlineInput').value = '';
+        document.getElementById('editDeadline').value = '';
+
+        console.log('📝 网页备忘应用已就绪！');
+        console.log('  - 快捷键：Ctrl+N 聚焦输入框，Esc 关闭弹窗');
+        console.log('  - 数据自动保存到浏览器本地存储');
+    </script>
+</body>
+</html>
