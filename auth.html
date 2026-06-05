@@ -280,13 +280,9 @@ async function handleLogin() {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
       if (error) {
-        if (error.message.includes('Invalid login credentials')) {
-          showMsg(errEl, '邮箱或密码错误');
-        } else {
-          showMsg(errEl, error.message);
-        }
-        btn.disabled = false;
-        btn.textContent = '登 录';
+        // Supabase 认证失败，降级到本地登录
+        console.log('Supabase 认证失败，尝试本地登录:', error.message);
+        localLogin(email, password, errEl, btn);
         return;
       }
 
@@ -443,9 +439,9 @@ async function handleRegister() {
       btn.textContent = '注 册';
       return;
     } catch (e) {
-      showMsg(errEl, '网络错误，请检查网络连接');
-      btn.disabled = false;
-      btn.textContent = '注 册';
+      // Supabase 注册失败，降级到本地注册
+      console.log('Supabase 注册失败，尝试本地注册:', e.message);
+      localRegister(email, nickname, password, errEl, sucEl, btn);
       return;
     }
   }
