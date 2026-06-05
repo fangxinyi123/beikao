@@ -904,6 +904,41 @@ html { scroll-behavior: smooth; }
   line-height: 1.6;
 }
 
+/* AI 加载动画 */
+.ai-loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: aiSpin 0.8s linear infinite;
+  margin: 0 auto;
+}
+@keyframes aiSpin { to { transform: rotate(360deg); } }
+
+/* AI 结果区域样式 */
+#aiResultContent h3 {
+  margin: 20px 0 10px;
+  color: var(--primary-dark);
+  border-bottom: 2px solid var(--primary);
+  padding-bottom: 6px;
+  font-size: 15px;
+}
+[data-theme="dark"] #aiResultContent h3 { color: #a29bfe; }
+#aiResultContent h4 {
+  margin: 16px 0 8px;
+  color: var(--primary);
+  font-size: 14px;
+}
+#aiResultContent strong {
+  color: var(--primary-dark);
+}
+#aiResultContent br + br {
+  display: block;
+  content: '';
+  margin-top: 8px;
+}
+
 @media (max-width: 768px) {
   .ai-summary-grid { grid-template-columns: repeat(2, 1fr); }
 }
