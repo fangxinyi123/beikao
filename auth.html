@@ -222,14 +222,9 @@ const SUPABASE_ANON_KEY = 'sb_publishable_UUJh0srqIrr8PBVrhH4u9Q_P7B6RkU-';
 
 let supabase = null;
 
-try {
-  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  document.getElementById('supabaseStatus').textContent = '☁️ 云端同步已就绪';
-  document.getElementById('supabaseStatus').className = 'supabase-status connected';
-} catch(e) {
-  document.getElementById('supabaseStatus').textContent = '⚠️ 云端服务未配置，使用本地模式';
-  document.getElementById('supabaseStatus').className = 'supabase-status disconnected';
-}
+// 不再强制初始化 Supabase 客户端，Auth 已不可用，直接走本地模式
+document.getElementById('supabaseStatus').textContent = '🔒 本地模式（离线可用）';
+document.getElementById('supabaseStatus').className = 'supabase-status disconnected';
 
 // ==================== Tab 切换 ====================
 document.querySelectorAll('.tab').forEach(tab => {
