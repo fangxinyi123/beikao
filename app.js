@@ -957,30 +957,51 @@ function toggleErrorReview(id) {
 function deleteError(id) { let errors = Storage.get('errors', []); errors = errors.filter(e => e.id !== id); Storage.set('errors', errors); renderErrors(document.getElementById('contentArea')); showToast('错题已删除'); }
 
 // ==================== 笔记 ====================
+// 计算连续打卡天数
+function calcStreak(notes) {
+  if (!notes.length) return 0;
+  const now = new Date();
+  const daysWithNotes = new Set();
+  notes.forEach(n => {
+    const d = new Date(n.date);
+    daysWithNotes.add(d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'));
+  });
+  let streak = 0;
+  for (let i = 0; i < 365; i++) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    const key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    if (daysWithNotes.has(key)) streak++;
+    else break;
+  }
+  return streak;
+}
+
 function renderNotes(container) {
   const notes = Storage.get('notes', []);
   let html = '';
 
-  // AI 分析汇总卡片
+  // 智能分析汇总卡片
   if (notes.length > 0) {
+    const streak = calcStreak(notes);
     html += '<div class="card ai-analysis-card">' +
-      '<div class="card-title">🤖 AI 深度分析 <span style="font-size:11px;color:var(--text-muted);font-weight:400">（大模型智能解读笔记）</span>' +
+      '<div class="card-title">📊 智能笔记分析 <span style="font-size:11px;color:var(--text-muted);font-weight:400">（深度解读你的学习数据）</span>' +
       '<button class="btn btn-small btn-cancel" onclick="toggleAiDetail()" style="margin-left:auto;font-size:11px">' +
-      '<span id="aiToggleIcon">📊</span> <span id="aiToggleText">展开分析</span></button></div>' +
+      '<span id="aiToggleIcon">📊</span> <span id="aiToggleText">展开报告</span></button></div>' +
       '<div id="aiSummaryArea">' +
       '<div class="ai-summary-grid">' +
       '<div class="ai-summary-item"><div class="ai-summary-num">' + notes.length + '</div><div class="ai-summary-label">📒 笔记总数</div></div>' +
       '<div class="ai-summary-item"><div class="ai-summary-num">' + notes.reduce((s,n) => s+(n.content||'').length, 0).toLocaleString() + '</div><div class="ai-summary-label">📝 总字数</div></div>' +
-      '<div class="ai-summary-item"><div class="ai-summary-num" id="aiSubCount">' + new Set(notes.map(n=>n.subject||'未分类')).size + '</div><div class="ai-summary-label">📂 覆盖科目</div></div>' +
+      '<div class="ai-summary-item"><div class="ai-summary-num">' + streak + '天</div><div class="ai-summary-label">🔥 连续打卡</div></div>' +
       '<div class="ai-summary-item"><div class="ai-summary-num" id="aiStatus">--</div><div class="ai-summary-label">🧠 分析状态</div></div>' +
       '</div>' +
-      '<button class="btn btn-small btn-primary" onclick="runAiAnalysis()" style="margin-top:12px;width:100%">🚀 开始 AI 深度分析</button>' +
+      '<button class="btn btn-small btn-primary" onclick="runAiAnalysis()" style="margin-top:12px;width:100%">🔍 开始智能分析</button>' +
       '</div>' +
 
       // 展开详情区域
       '<div id="aiDetailArea" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">' +
       '<div id="aiResultContent" style="line-height:1.9;font-size:14px">' +
-      '<div style="text-align:center;color:var(--text-muted);padding:20px">点击上方「开始 AI 深度分析」按钮，AI 将智能解读你的笔记</div>' +
+      '<div style="text-align:center;color:var(--text-muted);padding:20px">👆 点击上方「开始智能分析」按钮，查看基于你笔记内容的深度分析报告</div>' +
       '</div></div>' +
       '</div>';
   }
@@ -1011,17 +1032,10 @@ function renderNotes(container) {
   }
 }
 
-// ==================== AI 深度分析（调用大模型 API）====================
-const AI_API_CONFIG = {
-  // 使用免费/开源 API 代理，无需密钥即可使用
-  endpoints: [
-    { url: 'https://api.siliconflow.cn/v1/chat/completions', key: '', model: 'deepseek-ai/DeepSeek-V3' },
-    { url: 'https://api.openai.com/v1/chat/completions', key: '', model: 'gpt-3.5-turbo' }
-  ],
-  currentEndpoint: 0
-};
+// ==================== 智能笔记分析引擎 ====================
+// 基于笔记内容做真正的深度分析，不依赖外部 API
 
-async function runAiAnalysis() {
+function runAiAnalysis() {
   const notes = Storage.get('notes', []);
   if (notes.length === 0) return showToast('请先创建笔记');
 
@@ -1031,196 +1045,449 @@ async function runAiAnalysis() {
   const btn = document.querySelector('.ai-analysis-card .btn-primary');
 
   if (statusEl) statusEl.textContent = '⏳ 分析中...';
-  if (btn) { btn.disabled = true; btn.textContent = '🔄 AI 正在分析...'; }
+  if (btn) { btn.disabled = true; btn.textContent = '🔍 正在分析...'; }
   if (detailArea) detailArea.style.display = 'block';
 
-  // 显示思考中动画
-  if (resultDiv) resultDiv.innerHTML = '<div style="text-align:center;padding:30px"><div class="ai-loading-spinner"></div><div style="margin-top:12px;color:var(--text-muted)">🤔 AI 正在深度分析你的笔记内容...</div></div>';
+  if (resultDiv) resultDiv.innerHTML = '<div style="text-align:center;padding:30px"><div class="ai-loading-spinner"></div><div style="margin-top:12px;color:var(--text-muted)">🔍 正在深度分析你的笔记...</div></div>';
 
-  // 构建笔记摘要发送给 AI
-  const notesSummary = notes.map((n, i) =>
-    '【笔记' + (i+1) + '】\n标题：' + n.title + '\n科目：' + (n.subject || '通用') + '\n日期：' + formatDate(n.date) + '\n内容：' + (n.content || '（无内容）').substring(0, 500)
-  ).join('\n\n');
-
-  const prompt = `你是一位专业的考研备考导师。请仔细分析以下学生的笔记内容，给出深度分析和学习建议。
-
-${notesSummary}
-
-请按以下格式回复（使用 Markdown 格式）：
-
-## 📊 整体概况
-简要概括笔记覆盖的知识领域和学习状态（2-3句话）
-
-## 🎯 知识点梳理
-根据笔记内容，提炼出3-5个核心知识点或概念，并简要说明其重要性
-
-## 📈 学习进度评估
-评估当前学习进度，指出已经掌握较好的部分和需要加强的部分
-
-## ⚠️ 知识薄弱点
-指出笔记中可能遗漏或记录不够深入的关键知识点
-
-## 💡 针对性学习建议
-给出3-4条具体可行的学习建议（结合考研备考实际）
-
-## 🔗 知识点关联
-指出笔记中不同科目/知识点之间的潜在关联，建议如何串联复习
-
-## 📅 复习计划建议
-给出未来1-2周的复习重点和时间分配建议`;
-
-  let result = '';
-  let success = false;
-
-  // 尝试调用 AI API
-  for (let i = 0; i < AI_API_CONFIG.endpoints.length; i++) {
-    try {
-      const ep = AI_API_CONFIG.endpoints[i];
-      const headers = { 'Content-Type': 'application/json' };
-      if (ep.key) headers['Authorization'] = 'Bearer ' + ep.key;
-
-      const resp = await fetch(ep.url, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          model: ep.model,
-          messages: [
-            { role: 'system', content: '你是一位专业的考研备考导师，擅长分析学习笔记并给出深度建议。请使用 Markdown 格式回复，语言简洁有力。' },
-            { role: 'user', content: prompt }
-          ],
-          temperature: 0.7,
-          max_tokens: 2048
-        })
-      });
-
-      if (resp.ok) {
-        const data = await resp.json();
-        result = data.choices[0].message.content;
-        success = true;
-        break;
-      }
-    } catch (e) {
-      console.log('AI API ' + i + ' 调用失败:', e.message);
-    }
-  }
-
-  // 如果所有 API 都失败，使用本地智能分析
-  if (!success) {
-    result = localAiAnalysis(notes);
-  }
-
-  // 渲染结果（Markdown 转 HTML）
-  const mdHtml = formatAiMarkdown(result);
-
-  if (resultDiv) resultDiv.innerHTML = mdHtml;
-  if (statusEl) statusEl.textContent = success ? '✅ 已分析' : '⚡ 本地分析';
-  if (btn) { btn.disabled = false; btn.textContent = '🔄 重新分析'; }
-
-  // 缓存分析结果
-  Storage.set('aiAnalysis', mdHtml);
-  showToast(success ? 'AI 深度分析完成 🎉' : '已使用本地智能分析');
+  // 使用 setTimeout 让 loading 动画先渲染出来
+  setTimeout(() => {
+    const html = buildAnalysisReport(notes);
+    if (resultDiv) resultDiv.innerHTML = html;
+    if (statusEl) statusEl.textContent = '✅ 已分析';
+    if (btn) { btn.disabled = false; btn.textContent = '🔄 重新分析'; }
+    Storage.set('aiAnalysis', html);
+    showToast('智能分析完成 📊');
+  }, 300);
 }
 
-// Markdown 转 HTML（轻量级）
-function formatAiMarkdown(md) {
-  let html = md;
-  // 标题
-  html = html.replace(/^### (.+)$/gm, '<h4 style="margin:16px 0 8px;color:var(--primary)">$1</h4>');
-  html = html.replace(/^## (.+)$/gm, '<h3 style="margin:20px 0 10px;color:var(--primary-dark);border-bottom:2px solid var(--primary);padding-bottom:6px">$1</h3>');
-  html = html.replace(/^# (.+)$/gm, '<h2 style="margin:20px 0 12px;color:var(--primary-dark)">$1</h2>');
-  // 粗体
-  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  // 列表
-  html = html.replace(/^- (.+)$/gm, '<div style="margin:4px 0;padding-left:12px">• $1</div>');
-  html = html.replace(/^(\d+)\. (.+)$/gm, '<div style="margin:4px 0;padding-left:12px">$1. $2</div>');
-  // 换行
-  html = html.replace(/\n\n/g, '<br>');
-  html = html.replace(/\n/g, '<br>');
+// ========== 核心分析引擎 ==========
+function buildAnalysisReport(notes) {
+  const analysis = deepAnalyze(notes);
+  return renderAnalysisHTML(analysis);
+}
+
+function deepAnalyze(notes) {
+  const now = new Date();
+  const totalChars = notes.reduce((s, n) => s + (n.content || '').length, 0);
+  const avgLen = Math.round(totalChars / notes.length);
+
+  // 1. 科目分析
+  const subjects = {};
+  notes.forEach(n => { const s = n.subject || '未分类'; subjects[s] = (subjects[s] || 0) + 1; });
+  const subjectList = Object.entries(subjects).sort((a, b) => b[1] - a[1]);
+  const totalSubjects = subjectList.length;
+  const topSubject = subjectList[0];
+  const bottomSubject = subjectList[subjectList.length - 1];
+
+  // 2. 时间分析 - 学习日历热力图数据
+  const daysWithNotes = {};
+  const dailyCounts = {};
+  notes.forEach(n => {
+    const d = new Date(n.date);
+    const key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    daysWithNotes[key] = true;
+    dailyCounts[key] = (dailyCounts[key] || 0) + 1;
+  });
+
+  // 过去30天热力图数据
+  const heatmap = [];
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    const key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    heatmap.push({
+      date: key,
+      day: d.getDate(),
+      month: d.getMonth() + 1,
+      weekday: d.getDay(),
+      count: dailyCounts[key] || 0
+    });
+  }
+
+  // 连续打卡天数
+  let streak = 0;
+  for (let i = 0; i < 365; i++) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    const key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    if (daysWithNotes[key]) streak++;
+    else break;
+  }
+
+  // 近7天活跃度
+  const recent7Count = heatmap.slice(-7).filter(h => h.count > 0).length;
+  const recent30Count = heatmap.filter(h => h.count > 0).length;
+
+  // 3. 内容深度分析
+  const deepNotes = notes.filter(n => (n.content || '').length >= 200).length;
+  const shallowNotes = notes.filter(n => (n.content || '').length < 50 && (n.content || '').length > 0).length;
+  const emptyNotes = notes.filter(n => !n.content || n.content.trim() === '').length;
+
+  // 4. 提取关键词和主题
+  const allText = notes.map(n => n.title + ' ' + (n.content || '')).join(' ');
+  const keywords = extractKeywordsSmart(allText, 15);
+
+  // 5. 考研科目覆盖度检查
+  const kaoyanSubjects = ['政治', '英语', '数学', '专业课', '马原', '毛概', '史纲', '思修', '高数', '线代', '概率论', '阅读', '写作', '翻译', '完形', '新题型', '作文'];
+  const coveredKaoyan = kaoyanSubjects.filter(ks =>
+    notes.some(n => (n.subject || '').includes(ks) || (n.title || '').includes(ks) || (n.content || '').includes(ks))
+  );
+
+  // 6. 笔记类型分析（概念型 vs 应用型 vs 总结型）
+  const conceptNotes = notes.filter(n => /定义|概念|含义|是指|指的是|所谓|本质/.test((n.title||'') + (n.content||'')));
+  const applyNotes = notes.filter(n => /例题|习题|题目|解题|方法|步骤|技巧|公式|计算/.test((n.title||'') + (n.content||'')));
+  const summaryNotes = notes.filter(n => /总结|归纳|梳理|框架|思维导图|大纲|复习|回顾/.test((n.title||'') + (n.content||'')));
+
+  // 7. 时间间隔分析
+  const sortedDates = notes.map(n => new Date(n.date)).sort((a,b) => a-b);
+  const intervals = [];
+  for (let i = 1; i < sortedDates.length; i++) {
+    intervals.push(Math.round((sortedDates[i] - sortedDates[i-1]) / (1000*60*60*24)));
+  }
+  const avgInterval = intervals.length > 0 ? Math.round(intervals.reduce((s,v) => s+v, 0) / intervals.length) : 0;
+  const maxGap = intervals.length > 0 ? Math.max(...intervals) : 0;
+
+  // 8. 学习时间段偏好
+  const hourCounts = {};
+  notes.forEach(n => {
+    const h = new Date(n.date).getHours();
+    hourCounts[h] = (hourCounts[h] || 0) + 1;
+  });
+  let peakHour = 0, peakCount = 0;
+  Object.entries(hourCounts).forEach(([h, c]) => {
+    if (c > peakCount) { peakCount = c; peakHour = parseInt(h); }
+  });
+  const timeSlot = peakHour < 8 ? '清晨' : peakHour < 12 ? '上午' : peakHour < 14 ? '中午' : peakHour < 18 ? '下午' : peakHour < 22 ? '晚上' : '深夜';
+
+  // 9. 学习效率评分 (0-100)
+  let score = 50;
+  score += Math.min(20, notes.length * 3);           // 笔记数量加分
+  score += Math.min(15, totalSubjects * 5);           // 科目覆盖加分
+  score += Math.min(10, streak * 2);                  // 连续打卡加分
+  score += Math.min(10, Math.round(recent7Count / 7 * 10)); // 近7天活跃加分
+  score += Math.min(10, deepNotes * 2);               // 深度笔记加分
+  score += Math.min(5, conceptNotes.length + applyNotes.length + summaryNotes.length); // 类型多样加分
+  score -= Math.min(15, emptyNotes * 3);              // 空笔记扣分
+  score -= Math.min(10, shallowNotes * 2);            // 浅笔记扣分
+  if (maxGap > 14) score -= Math.min(10, Math.round(maxGap / 7)); // 长时间间断扣分
+  score = Math.max(5, Math.min(95, score));
+
+  // 10. 生成个性化建议
+  const suggestions = generateSmartSuggestions({
+    notes, totalChars, avgLen, subjectList, totalSubjects, topSubject, bottomSubject,
+    streak, recent7Count, recent30Count, deepNotes, shallowNotes, emptyNotes,
+    conceptNotes, applyNotes, summaryNotes, avgInterval, maxGap, timeSlot, peakHour,
+    coveredKaoyan, score, keywords
+  });
+
+  return {
+    notes, totalChars, avgLen, subjectList, totalSubjects, topSubject, bottomSubject,
+    streak, recent7Count, recent30Count, deepNotes, shallowNotes, emptyNotes,
+    conceptNotes, applyNotes, summaryNotes, avgInterval, maxGap, timeSlot, peakHour,
+    coveredKaoyan, score, keywords, heatmap, suggestions
+  };
+}
+
+// 智能关键词提取（按词组）
+function extractKeywordsSmart(text, n) {
+  const stopWords = new Set(['的','了','在','是','我','有','和','就','不','人','都','一','一个','上','也','很','到','说','要','去','你','会','着','没有','看','好','自己','这','那','他','她','它','们','什么','怎么','哪','为什么','因为','所以','如果','但是','可以','已经','还','又','再','才','刚','更','最','比较','非常','可能','应该','需要','能','会','让','把','被','从','对','与','或','而','且','虽然','然而','不过','然后','之后','之前','时候','时间','现在','今天','昨天','明天','这里','那里','这个','那个','这些','那些','做','进行','使用','通过','问题','情况','方面','方法','方式','过程','结果','发展','关系','作用','影响','基本','主要','重要','一定','必须','一种','一些','很多','其他','不同','相同','部分','全部','所有','整个','对于','关于','根据','按照','以及','及其','其中','其他','此外','另外','最后','第一','第二','第三','首先','其次','再次','然后','最后','总之','因此','所以','不过','就是','只是','the','a','an','is','are','was','were','be','been','being','have','has','had','do','does','did','will','would','could','should','may','might','can','shall','to','of','in','for','on','with','at','by','from','as','into','through','during','before','after','and','or','it','its','that','this','these','those','which','what','when','where','who','how','all','not','but','if','so','no','we','he','she','they','their','his','her','them','then','now','just','also','very','only','some','any','each','every','both','few','more','most','other','such','than','too','very','well','one','two','new','like','make','use','get','see','know','think','say','come','take','look','go','find','give','tell','work','call','try','ask','need','feel','become','leave','put','mean','keep','let','begin','seem','help','turn','show','hear','play','run','move','live','believe','bring','happen','write','provide','sit','stand','lose','pay','meet','include','continue','set','learn','change','lead','understand','watch','follow','stop','create','speak','read','allow','add','spend','grow','open','walk','win','offer','remember','consider','appear','buy','serve','die','send','build','stay','fall','cut','reach','kill','raise','pass','sell','decide','return','explain','hope','develop','carry','break','receive','agree','support','hit','produce','eat','cover','catch','draw','choose']);
+  const freq = {};
+
+  // 中文词组提取：2-6字连续词组
+  const chinese = text.match(/[\u4e00-\u9fa5]{2,6}/g) || [];
+  chinese.forEach(w => { if (!stopWords.has(w) && w.length >= 2) freq[w] = (freq[w]||0) + 1; });
+
+  // 英文单词提取
+  const english = text.match(/[a-zA-Z]{3,}/g) || [];
+  english.forEach(w => { const l = w.toLowerCase(); if (!stopWords.has(l)) freq[l] = (freq[l]||0) + 1; });
+
+  // 按频率排序，取前N个
+  return Object.entries(freq)
+    .filter(([,c]) => c >= 2)
+    .sort((a,b) => b[1]-a[1])
+    .slice(0, n)
+    .map(([w]) => w);
+}
+
+// 生成个性化学习建议
+function generateSmartSuggestions(a) {
+  const tips = [];
+
+  // 基于连续打卡
+  if (a.streak >= 7) {
+    tips.push({ icon: '🔥', text: '太厉害了！你已经连续 <strong>' + a.streak + '天</strong> 保持学习记录，这种坚持本身就是考研路上最宝贵的品质。继续保持这个节奏！' });
+  } else if (a.streak >= 3) {
+    tips.push({ icon: '💪', text: '连续 <strong>' + a.streak + '天</strong> 打卡学习，节奏不错。试着挑战连续7天，形成稳定的学习习惯。' });
+  } else if (a.streak > 0) {
+    tips.push({ icon: '🎯', text: '刚起步就有连续打卡，好的开始！考研是场马拉松，每天进步一点点就是胜利。' });
+  } else {
+    tips.push({ icon: '🚀', text: '今天就开始做笔记吧！哪怕只写一句话，让记录成为一种习惯。' });
+  }
+
+  // 基于长时间间隔
+  if (a.maxGap > 14) {
+    tips.push({ icon: '⚠️', text: '你有过 <strong>' + a.maxGap + '天</strong> 的学习空档期。建议每天至少花15分钟浏览旧笔记，保持知识不遗忘。' });
+  }
+
+  // 基于笔记深度
+  if (a.emptyNotes > 0) {
+    tips.push({ icon: '📝', text: '你有 <strong>' + a.emptyNotes + '篇</strong> 笔记没有填写内容。标题只是引子，把学到的知识点写下来才能真正内化。' });
+  }
+  if (a.shallowNotes > 3) {
+    tips.push({ icon: '✍️', text: '有 <strong>' + a.shallowNotes + '篇</strong> 笔记内容较短。尝试对每个知识点写3-5句自己的理解，用自己的话复述才是真正的掌握。' });
+  }
+
+  // 基于笔记类型
+  if (a.conceptNotes.length === 0 && a.notes.length >= 3) {
+    tips.push({ icon: '📖', text: '你的笔记中缺少概念定义类的记录。建议为重要概念单独建笔记，用自己的话解释定义，这是考研答题的基础。' });
+  }
+  if (a.applyNotes.length === 0 && a.notes.length >= 3) {
+    tips.push({ icon: '🧮', text: '还没看到解题方法类的笔记。把做错的题、经典的解题思路记录下来，形成自己的"解题秘籍"。' });
+  }
+  if (a.summaryNotes.length === 0 && a.notes.length >= 5) {
+    tips.push({ icon: '🗺️', text: '笔记积累到一定程度后，建议做一次知识框架总结，用思维导图把所有知识点串起来。' });
+  }
+
+  // 基于科目覆盖
+  if (a.totalSubjects <= 1 && a.notes.length >= 3) {
+    tips.push({ icon: '📚', text: '笔记集中在单一科目。考研需要多科并进，建议为英语、政治、数学、专业课分别建立笔记体系。' });
+  }
+  if (a.bottomSubject && a.topSubject && a.bottomSubject[0] !== a.topSubject[0] && a.bottomSubject[1] <= 2) {
+    tips.push({ icon: '⚖️', text: '「' + a.bottomSubject[0] + '」只有 <strong>' + a.bottomSubject[1] + '篇</strong> 笔记，明显偏少。接下来几天可以重点攻克这个科目。' });
+  }
+
+  // 基于学习时段
+  if (a.timeSlot === '深夜') {
+    tips.push({ icon: '😴', text: '你经常在深夜学习。考研是持久战，保证充足睡眠才能高效记忆。试着把学习时间调整到白天。' });
+  } else if (a.timeSlot === '清晨') {
+    tips.push({ icon: '🌅', text: '早起学习是个非常好的习惯！清晨大脑清醒，适合背诵英语单词和政治知识点。' });
+  }
+
+  // 基于平均间隔
+  if (a.avgInterval >= 4) {
+    tips.push({ icon: '📅', text: '平均每 <strong>' + a.avgInterval + '天</strong> 才写一篇笔记，频率偏低。建议每天至少写一篇，积少成多。' });
+  } else if (a.avgInterval <= 1 && a.notes.length >= 5) {
+    tips.push({ icon: '⭐', text: '几乎每天都有笔记记录，学习节奏非常棒！坚持下去，考研必胜！' });
+  }
+
+  // 基于综合评分
+  if (a.score >= 80) {
+    tips.push({ icon: '🏆', text: '综合学习评分 <strong>' + a.score + '/100</strong>，你的学习状态非常好！继续保持，重点关注薄弱科目即可。' });
+  } else if (a.score >= 50) {
+    tips.push({ icon: '📈', text: '综合学习评分 <strong>' + a.score + '/100</strong>，还有很大提升空间。增加笔记频率和深度是快速提分的关键。' });
+  } else {
+    tips.push({ icon: '🎯', text: '综合学习评分 <strong>' + a.score + '/100</strong>，现在是奋起直追的最佳时机。每天多写一篇笔记，一个月后你会感谢今天的自己。' });
+  }
+
+  return tips;
+}
+
+// ========== 渲染分析报告 ==========
+function renderAnalysisHTML(a) {
+  const scoreColor = a.score >= 80 ? '#22c55e' : a.score >= 50 ? '#f59e0b' : '#ef4444';
+  const scoreEmoji = a.score >= 80 ? '🏆' : a.score >= 50 ? '📈' : '🎯';
+  const scoreLabel = a.score >= 80 ? '优秀' : a.score >= 50 ? '良好' : '待提升';
+
+  // 科目标签颜色
+  const subColors = ['#6366f1','#ec4899','#14b8a6','#f97316','#8b5cf6','#06b6d4','#e11d48'];
+  const subjectTags = a.subjectList.map(([name, count], i) =>
+    '<span style="display:inline-block;background:' + subColors[i % subColors.length] + ';color:#fff;padding:4px 12px;border-radius:20px;font-size:12px;margin:3px;font-weight:600">' + name + ' ×' + count + '</span>'
+  ).join('');
+
+  // 学习日历热力图
+  const heatmapHTML = buildHeatmapHTML(a.heatmap);
+
+  // 建议列表
+  const suggestionItems = a.suggestions.map(t =>
+    '<div style="padding:10px 14px;margin:6px 0;background:var(--bg-secondary, #f8fafc);border-radius:10px;border-left:3px solid var(--primary, #6366f1);font-size:13px;line-height:1.7">' +
+    '<span style="font-size:16px;margin-right:6px">' + t.icon + '</span>' + t.text +
+    '</div>'
+  ).join('');
+
+  // 关键词云
+  const maxKw = Math.max(...a.keywords.map(([,c]) => c), 1);
+  const keywordTags = a.keywords.map(([w, c]) => {
+    const size = 11 + Math.round((c / maxKw) * 10);
+    const opacity = 0.6 + (c / maxKw) * 0.4;
+    return '<span style="display:inline-block;font-size:' + size + 'px;color:var(--primary, #6366f1);opacity:' + opacity + ';margin:4px 6px;font-weight:600;cursor:default" title="出现' + c + '次">' + w + '</span>';
+  }).join('');
+
+  return '' +
+  // 评分大卡片
+  '<div style="text-align:center;padding:24px 0 16px">' +
+    '<div style="display:inline-block;position:relative">' +
+      '<svg width="120" height="120" viewBox="0 0 120 120">' +
+        '<circle cx="60" cy="60" r="52" fill="none" stroke="var(--border, #e2e8f0)" stroke-width="8"/>' +
+        '<circle cx="60" cy="60" r="52" fill="none" stroke="' + scoreColor + '" stroke-width="8" stroke-dasharray="' + (a.score / 100 * 327) + ' 327" stroke-linecap="round" transform="rotate(-90 60 60)" style="transition:stroke-dasharray 1s ease"/>' +
+      '</svg>' +
+      '<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center">' +
+        '<div style="font-size:32px;font-weight:800;color:' + scoreColor + '">' + a.score + '</div>' +
+        '<div style="font-size:11px;color:var(--text-muted)">/ 100</div>' +
+      '</div>' +
+    '</div>' +
+    '<div style="margin-top:8px;font-size:18px;font-weight:700">' + scoreEmoji + ' 学习状态：<span style="color:' + scoreColor + '">' + scoreLabel + '</span></div>' +
+    '<div style="font-size:12px;color:var(--text-muted);margin-top:4px">基于笔记数量、深度、频率、连续性等维度综合评估</div>' +
+  '</div>' +
+
+  // 关键指标卡片
+  '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:16px 0">' +
+    '<div style="background:var(--bg-secondary, #f8fafc);border-radius:10px;padding:12px 8px;text-align:center"><div style="font-size:22px;font-weight:700;color:var(--primary)">' + a.notes.length + '</div><div style="font-size:10px;color:var(--text-muted)">📒 笔记数</div></div>' +
+    '<div style="background:var(--bg-secondary, #f8fafc);border-radius:10px;padding:12px 8px;text-align:center"><div style="font-size:22px;font-weight:700;color:#22c55e">' + a.streak + '</div><div style="font-size:10px;color:var(--text-muted)">🔥 连续天</div></div>' +
+    '<div style="background:var(--bg-secondary, #f8fafc);border-radius:10px;padding:12px 8px;text-align:center"><div style="font-size:22px;font-weight:700;color:#f59e0b">' + a.recent7Count + '/7</div><div style="font-size:10px;color:var(--text-muted)">📅 近7天</div></div>' +
+    '<div style="background:var(--bg-secondary, #f8fafc);border-radius:10px;padding:12px 8px;text-align:center"><div style="font-size:22px;font-weight:700;color:#6366f1">' + a.totalSubjects + '</div><div style="font-size:10px;color:var(--text-muted)">📂 科目数</div></div>' +
+  '</div>' +
+
+  // 学习日历
+  '<h3 style="margin:20px 0 8px;font-size:15px;color:var(--text-primary)">📅 近30天学习热力图</h3>' +
+  '<div style="margin-bottom:16px">' + heatmapHTML + '</div>' +
+
+  // 科目分布
+  '<h3 style="margin:20px 0 8px;font-size:15px;color:var(--text-primary)">📊 科目分布</h3>' +
+  '<div style="margin-bottom:12px">' + subjectTags + '</div>' +
+  (a.subjectList.length > 1 ? '<div style="margin-bottom:16px">' + buildSubjectBars(a) + '</div>' : '') +
+
+  // 内容分析
+  '<h3 style="margin:20px 0 8px;font-size:15px;color:var(--text-primary)">📝 笔记质量分析</h3>' +
+  '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px">' +
+    '<div style="background:#f0fdf4;border-radius:10px;padding:12px 8px;text-align:center"><div style="font-size:18px;font-weight:700;color:#16a34a">' + a.deepNotes + '篇</div><div style="font-size:10px;color:#15803d">📖 深度笔记</div><div style="font-size:9px;color:#86efac">≥200字</div></div>' +
+    '<div style="background:#fefce8;border-radius:10px;padding:12px 8px;text-align:center"><div style="font-size:18px;font-weight:700;color:#ca8a04">' + a.shallowNotes + '篇</div><div style="font-size:10px;color:#a16207">✏️ 简略笔记</div><div style="font-size:9px;color:#fde047">＜50字</div></div>' +
+    '<div style="background:#fef2f2;border-radius:10px;padding:12px 8px;text-align:center"><div style="font-size:18px;font-weight:700;color:#dc2626">' + a.emptyNotes + '篇</div><div style="font-size:10px;color:#b91c1c">⚠️ 空白笔记</div><div style="font-size:9px;color:#fca5a5">无内容</div></div>' +
+  '</div>' +
+
+  // 笔记类型
+  '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px">' +
+    '<div style="background:var(--bg-secondary, #f8fafc);border-radius:10px;padding:10px 8px;text-align:center"><div style="font-size:11px;color:var(--text-muted)">📖 概念型</div><div style="font-size:18px;font-weight:700">' + a.conceptNotes.length + '</div></div>' +
+    '<div style="background:var(--bg-secondary, #f8fafc);border-radius:10px;padding:10px 8px;text-align:center"><div style="font-size:11px;color:var(--text-muted)">🧮 解题型</div><div style="font-size:18px;font-weight:700">' + a.applyNotes.length + '</div></div>' +
+    '<div style="background:var(--bg-secondary, #f8fafc);border-radius:10px;padding:10px 8px;text-align:center"><div style="font-size:11px;color:var(--text-muted)">🗺️ 总结型</div><div style="font-size:18px;font-weight:700">' + a.summaryNotes.length + '</div></div>' +
+  '</div>' +
+
+  // 关键词云
+  (a.keywords.length > 0 ? '<h3 style="margin:20px 0 8px;font-size:15px;color:var(--text-primary)">☁️ 高频知识点</h3><div style="padding:12px;background:var(--bg-secondary, #f8fafc);border-radius:12px;text-align:center;line-height:2;margin-bottom:16px">' + keywordTags + '</div>' : '') +
+
+  // 考研覆盖度
+  (a.coveredKaoyan.length > 0 ? '<h3 style="margin:20px 0 8px;font-size:15px;color:var(--text-primary)">🎓 考研知识点覆盖</h3><div style="margin-bottom:16px;font-size:13px;color:var(--text-secondary);line-height:1.8">已覆盖：' + a.coveredKaoyan.map(k => '<span style="display:inline-block;background:#ede9fe;color:#7c3aed;padding:2px 10px;border-radius:12px;margin:2px;font-size:12px">' + k + '</span>').join(' ') + '<br><span style="font-size:11px;color:var(--text-muted)">提示：考研需要全面覆盖政治、英语、数学、专业课等核心科目</span></div>' : '') +
+
+  // 学习习惯洞察
+  '<h3 style="margin:20px 0 8px;font-size:15px;color:var(--text-primary)">🔍 学习习惯洞察</h3>' +
+  '<div style="font-size:13px;color:var(--text-secondary);line-height:1.9;margin-bottom:16px;background:var(--bg-secondary, #f8fafc);border-radius:12px;padding:14px">' +
+    '<div>📝 共 <strong>' + a.notes.length + '</strong> 篇笔记，总计 <strong>' + a.totalChars.toLocaleString() + '</strong> 字，平均每篇 <strong>' + a.avgLen + '</strong> 字</div>' +
+    '<div>⏰ 你最喜欢在 <strong>' + a.timeSlot + '</strong> 学习（' + a.peakHour + ':00左右）</div>' +
+    '<div>📅 平均每 <strong>' + (a.avgInterval || '--') + '</strong> 天写一篇笔记' + (a.maxGap > 7 ? '，最长间隔 <strong>' + a.maxGap + '</strong> 天' : '') + '</div>' +
+    '<div>🔥 连续打卡 <strong>' + a.streak + '</strong> 天，近30天活跃 <strong>' + a.recent30Count + '</strong> 天</div>' +
+    '<div>📂 覆盖 <strong>' + a.totalSubjects + '</strong> 个科目' + (a.topSubject ? '，最多的是「' + a.topSubject[0] + '」(' + a.topSubject[1] + '篇)' : '') + '</div>' +
+  '</div>' +
+
+  // 个性化建议
+  '<h3 style="margin:20px 0 8px;font-size:15px;color:var(--text-primary)">💡 个性化学习建议</h3>' +
+  '<div style="margin-bottom:16px">' + suggestionItems + '</div>' +
+
+  // 复习提醒
+  '<h3 style="margin:20px 0 8px;font-size:15px;color:var(--text-primary)">🔔 近期复习提醒</h3>' +
+  '<div style="font-size:13px;color:var(--text-secondary);line-height:1.9;margin-bottom:8px;background:#fff7ed;border-radius:12px;padding:14px;border:1px solid #fed7aa">' +
+    buildReviewReminders(a) +
+  '</div>' +
+
+  // 底部提示
+  '<div style="text-align:center;font-size:11px;color:var(--text-muted);padding:16px 0 4px;border-top:1px solid var(--border);margin-top:16px">📊 以上分析基于你的笔记内容自动生成 · 每次新增笔记后重新分析可获得最新洞察</div>';
+}
+
+// 学习热力图
+function buildHeatmapHTML(heatmap) {
+  const weeks = [];
+  for (let i = 0; i < heatmap.length; i += 7) {
+    weeks.push(heatmap.slice(i, i + 7));
+  }
+
+  const dayLabels = ['日','一','二','三','四','五','六'];
+
+  let html = '<div style="overflow-x:auto;padding:4px 0"><div style="display:flex;gap:3px;font-size:10px">';
+
+  weeks.forEach((week, wi) => {
+    html += '<div style="display:flex;flex-direction:column;gap:3px">';
+    week.forEach((day, di) => {
+      let bg;
+      if (day.count === 0) bg = '#f1f5f9';
+      else if (day.count === 1) bg = '#bbf7d0';
+      else if (day.count === 2) bg = '#4ade80';
+      else bg = '#16a34a';
+      html += '<div title="' + day.date + '：' + day.count + '篇笔记" style="width:14px;height:14px;border-radius:3px;background:' + bg + ';cursor:pointer"></div>';
+    });
+    html += '</div>';
+  });
+
+  html += '</div>' +
+    '<div style="display:flex;justify-content:space-between;margin-top:4px;font-size:9px;color:var(--text-muted)">' +
+      '<span>少</span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#f1f5f9"></span>' +
+      '<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#bbf7d0"></span>' +
+      '<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#4ade80"></span>' +
+      '<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#16a34a"></span>' +
+      '<span>多</span>' +
+    '</div></div>';
 
   return html;
 }
 
-// 本地智能分析（API 不可用时的备选方案）
-function localAiAnalysis(notes) {
-  const totalChars = notes.reduce((s, n) => s + (n.content || '').length, 0);
-  const subjects = {};
-  notes.forEach(n => { const s = n.subject || '未分类'; subjects[s] = (subjects[s] || 0) + 1; });
-  const subjectList = Object.entries(subjects).sort((a, b) => b[1] - a[1]);
-  const allText = notes.map(n => n.title + ' ' + (n.content || '')).join(' ');
-
-  // 提取核心关键词
-  const keywords = extractTopKeywords(allText, 8);
-  const kwList = keywords.join('、');
-
-  // 科目分布分析
-  const subAnalysis = subjectList.map(([name, count]) => name + '（' + count + '篇）').join('、');
-
-  // 时间分析
-  const now = new Date();
-  const recentDays = notes.filter(n => (now - new Date(n.date)) / (1000*60*60*24) <= 7).length;
-  const avgLen = notes.length > 0 ? Math.round(totalChars / notes.length) : 0;
-
-  // 生成分析报告
-  const parts = [];
-  parts.push('## 📊 整体概况');
-  parts.push('你的笔记共 **' + notes.length + '篇**，总计 **' + totalChars.toLocaleString() + '字**，覆盖 **' + Object.keys(subjects).length + '个科目**。' +
-    (recentDays > 0 ? '近7天新增' + recentDays + '篇笔记，' : '近期笔记更新较少，') +
-    '平均每篇' + avgLen + '字。');
-
-  parts.push('## 🎯 知识点梳理');
-  parts.push('通过分析你的笔记内容，提取到以下核心知识点：**' + kwList + '**。' +
-    (subjectList.length > 1 ? '这些知识点横跨' + subjectList.map(s => s[0]).join('、') + '等多个领域。' : '目前笔记集中在「' + (subjectList[0]?.[0] || '通用') + '」领域。'));
-
-  parts.push('## 📈 学习进度评估');
-  const topSub = subjectList[0];
-  const weakSub = subjectList.length > 1 ? subjectList[subjectList.length - 1] : null;
-  parts.push('**优势科目**：' + (topSub ? topSub[0] + '（' + topSub[1] + '篇）' : '暂无') + '，已投入较多精力。');
-  if (weakSub && weakSub[0] !== topSub[0]) {
-    parts.push('**待加强科目**：' + weakSub[0] + '（仅' + weakSub[1] + '篇），建议增加该科目的学习笔记。');
-  }
-  parts.push('笔记内容' + (avgLen >= 200 ? '较为充实，继续保持' : '偏简洁，建议展开详细记录') + '。');
-
-  parts.push('## ⚠️ 知识薄弱点');
-  if (subjectList.length <= 1) {
-    parts.push('笔记覆盖科目较少，可能存在知识盲区。建议扩展到政治、英语、数学、专业课等考研核心科目。');
-  } else {
-    const weakSubs = subjectList.filter(([,c]) => c <= 1).map(([n]) => n);
-    if (weakSubs.length > 0) {
-      parts.push('以下科目笔记较少，建议加强：**' + weakSubs.join('、') + '**');
-    } else {
-      parts.push('各科目笔记分布较为均衡，继续保持！');
-    }
-  }
-  if (avgLen < 100) parts.push('笔记平均字数偏少，建议对重要知识点进行更详细的记录和展开。');
-
-  parts.push('## 💡 针对性学习建议');
-  parts.push('1. ' + (subjectList.length <= 1 ? '扩展学习范围，增加不同科目的笔记，构建完整的考研知识体系' : '保持多科目并行学习，每日轮换不同科目'));
-  parts.push('2. ' + (avgLen < 150 ? '提升笔记深度，对每个知识点至少写3-5句详细说明' : '尝试用思维导图梳理知识脉络，提升复习效率'));
-  parts.push('3. 定期（每周末）回顾本周笔记，标记掌握程度，重点复习薄弱环节');
-  parts.push('4. 结合真题练习，将做题心得和错题知识点补充到笔记中');
-
-  parts.push('## 🔗 知识点关联');
-  parts.push(subjectList.length >= 2 ?
-    '你的笔记涉及多个科目，建议注意跨学科知识关联。例如：政治中的哲学原理可应用于英语写作的论证逻辑；专业课知识点可与英语阅读理解结合练习。' :
-    '随着笔记科目增多，AI将为你发现更多跨学科知识关联。');
-
-  parts.push('## 📅 复习计划建议');
-  parts.push('**本周重点**：回顾最近' + (recentDays > 0 ? '新增的' + recentDays + '篇笔记' : '笔记内容') + '，确保完全理解。');
-  parts.push('**下周重点**：' + (weakSub ? '加强「' + weakSub[0] + '」的学习和笔记记录' : '继续深化各科目笔记'));
-  parts.push('**每日建议**：学习30-60分钟后立即做笔记，加深记忆效果。');
-
-  return parts.join('\n\n');
+// 科目柱状图
+function buildSubjectBars(a) {
+  const maxCount = Math.max(...a.subjectList.map(([,c]) => c), 1);
+  return a.subjectList.map(([name, count], i) => {
+    const colors = ['#6366f1','#ec4899','#14b8a6','#f97316','#8b5cf6','#06b6d4'];
+    const color = colors[i % colors.length];
+    const width = Math.round(count / maxCount * 100);
+    return '<div style="display:flex;align-items:center;gap:8px;margin:4px 0">' +
+      '<div style="width:60px;font-size:12px;text-align:right;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + name + '</div>' +
+      '<div style="flex:1;height:20px;background:var(--bg-secondary);border-radius:10px;overflow:hidden">' +
+        '<div style="height:100%;width:' + width + '%;background:' + color + ';border-radius:10px;transition:width 0.5s ease;display:flex;align-items:center;justify-content:flex-end;padding-right:8px">' +
+          '<span style="font-size:10px;color:#fff;font-weight:600">' + count + '</span>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
 }
 
-// 提取关键词
-function extractTopKeywords(text, n) {
-  const stopWords = new Set(['的','了','在','是','我','有','和','就','不','人','都','一','一个','上','也','很','到','说','要','去','你','会','着','没有','看','好','自己','这','the','a','an','is','are','was','were','be','been','being','have','has','had','do','does','did','will','would','could','should','may','might','can','shall','to','of','in','for','on','with','at','by','from','as','into','through','during','before','after','and','or','it','its','that','this','these','those','which']);
-  const freq = {};
-  const chinese = text.match(/[\u4e00-\u9fa5]{2,4}/g) || [];
-  chinese.forEach(w => { if (!stopWords.has(w)) freq[w] = (freq[w]||0) + 1; });
-  const english = text.match(/[a-zA-Z]{3,}/g) || [];
-  english.forEach(w => { const l = w.toLowerCase(); if (!stopWords.has(l)) freq[l] = (freq[l]||0) + 1; });
-  return Object.entries(freq).filter(([,c]) => c >= 2).sort((a,b) => b[1]-a[1]).slice(0,n).map(([w]) => w);
+// 复习提醒
+function buildReviewReminders(a) {
+  const now = new Date();
+  let reminders = '';
+
+  // 超过7天未复习的笔记
+  const oldNotes = a.notes.filter(n => (now - new Date(n.date)) / (1000*60*60*24) > 7);
+  if (oldNotes.length > 0) {
+    const oldest = oldNotes.sort((x,y) => new Date(x.date) - new Date(y.date));
+    reminders += '<div>⚠️ 有 <strong>' + oldNotes.length + '篇</strong> 笔记超过7天未复习，建议优先回顾：</div>';
+    oldest.slice(0, 3).forEach(n => {
+      reminders += '<div style="padding-left:16px;font-size:12px">📌 ' + n.title + '（' + formatDate(n.date) + '）</div>';
+    });
+    if (oldNotes.length > 3) reminders += '<div style="padding-left:16px;font-size:12px;color:var(--text-muted)">...还有 ' + (oldNotes.length - 3) + ' 篇</div>';
+  }
+
+  // 薄弱科目提醒
+  if (a.bottomSubject && a.topSubject && a.bottomSubject[0] !== a.topSubject[0]) {
+    reminders += '<div style="margin-top:8px">🎯 薄弱科目「<strong>' + a.bottomSubject[0] + '</strong>」仅 <strong>' + a.bottomSubject[1] + '篇</strong>笔记，今天可以花30分钟专门学习这个科目。</div>';
+  }
+
+  // 艾宾浩斯复习提醒（1天、2天、4天、7天、15天后应复习）
+  const ebbinghaus = [1, 2, 4, 7, 15];
+  const dueReview = [];
+  a.notes.forEach(n => {
+    const daysAgo = Math.floor((now - new Date(n.date)) / (1000*60*60*24));
+    if (ebbinghaus.includes(daysAgo)) {
+      dueReview.push({ title: n.title, daysAgo: daysAgo });
+    }
+  });
+  if (dueReview.length > 0) {
+    reminders += '<div style="margin-top:8px">🧠 根据艾宾浩斯遗忘曲线，以下笔记现在复习效果最佳：</div>';
+    dueReview.slice(0, 3).forEach(r => {
+      reminders += '<div style="padding-left:16px;font-size:12px">📌 ' + r.title + '（' + r.daysAgo + '天前记录，现在是第' + r.daysAgo + '天复习黄金期）</div>';
+    });
+  }
+
+  if (!reminders) {
+    reminders = '<div>✅ 目前没有需要紧急复习的笔记，继续保持！</div>';
+  }
+
+  return reminders;
 }
 
 function toggleAiDetail() {
