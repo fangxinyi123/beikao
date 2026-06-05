@@ -217,9 +217,8 @@ body {
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // ==================== Supabase 配置 ====================
-// TODO: 替换为你的 Supabase 项目信息
-const SUPABASE_URL = 'https://YOUR_PROJECT_ID.supabase.co';
-const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY';
+const SUPABASE_URL = 'https://gmnkebtoaxadityitklp.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_UUJh0srqIrr8PBVrhH4u9Q_P7B6RkU-';
 
 let supabase = null;
 
@@ -309,9 +308,9 @@ async function handleLogin() {
         return;
       }
     } catch (e) {
-      showMsg(errEl, '网络错误，请检查网络连接后重试');
-      btn.disabled = false;
-      btn.textContent = '登 录';
+      // Supabase 请求失败，降级到本地登录
+      console.log('Supabase 登录失败，尝试本地登录:', e.message);
+      localLogin(email, password, errEl, btn);
       return;
     }
   }

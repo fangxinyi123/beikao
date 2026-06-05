@@ -2,10 +2,10 @@
 // 替换原来的纯 localStorage 账号系统
 // 需要在 index.html 中先引入 Supabase SDK
 
-// Supabase 配置（部署前替换为你的项目信息）
+// Supabase 配置
 const SUPABASE_CONFIG = {
-  url: 'https://YOUR_PROJECT_ID.supabase.co',
-  anonKey: 'YOUR_ANON_KEY'
+  url: 'https://gmnkebtoaxadityitklp.supabase.co',
+  anonKey: 'sb_publishable_UUJh0srqIrr8PBVrhH4u9Q_P7B6RkU-'
 };
 
 let supabase = null;
@@ -127,11 +127,12 @@ const Auth = {
   async logout() {
     await CloudSync.pushToCloud();
     if (initSupabase()) {
-      await supabase.auth.signOut();
+      try { await supabase.auth.signOut(); } catch(e) {}
     }
     localStorage.removeItem('study_current_user');
-    localStorage.removeItem('study_auth_skip');
-    window.location.href = 'auth.html';
+    // 退出后设为跳过登录模式，这样回到主页不会卡在认证页
+    localStorage.setItem('study_auth_skip', 'true');
+    window.location.href = 'index.html';
   }
 };
 
