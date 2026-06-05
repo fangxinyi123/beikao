@@ -80,6 +80,7 @@ body {
   color: #fff;
 }
 .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 .btn-outline {
   background: #fff;
   color: #667eea;
@@ -103,20 +104,16 @@ body {
 }
 .divider::before { left: 0; }
 .divider::after { right: 0; }
-.error-msg {
-  color: #e74c3c;
+.msg {
   font-size: 13px;
   margin-top: 8px;
   display: none;
   text-align: center;
+  padding: 8px;
+  border-radius: 8px;
 }
-.success-msg {
-  color: #27ae60;
-  font-size: 13px;
-  margin-top: 8px;
-  display: none;
-  text-align: center;
-}
+.msg.error { color: #e74c3c; background: #fdf2f2; }
+.msg.success { color: #27ae60; background: #f0fdf4; }
 .form-panel { display: none; }
 .form-panel.active { display: block; }
 .nickname-hint {
@@ -139,15 +136,23 @@ body {
   color: #999;
   margin-bottom: 8px;
 }
+.supabase-status {
+  text-align: center;
+  font-size: 11px;
+  color: #999;
+  margin-top: 20px;
+}
+.supabase-status.connected { color: #27ae60; }
+.supabase-status.disconnected { color: #e67e22; }
 </style>
 </head>
 <body>
 
 <div class="auth-container">
   <div class="logo">
-    <div class="icon">📚</div>
+    <div class="icon">☁️</div>
     <h1>不摆烂研习社</h1>
-    <p>考研备考 · 本地账号 · 数据随身带</p>
+    <p>考研备考 · 云端同步 · 多设备登录</p>
   </div>
 
   <div class="tabs">
@@ -158,15 +163,15 @@ body {
   <!-- 登录面板 -->
   <div class="form-panel active" id="loginPanel">
     <div class="form-group">
-      <label>用户名</label>
-      <input type="text" id="loginUsername" placeholder="请输入用户名">
+      <label>邮箱</label>
+      <input type="email" id="loginEmail" placeholder="请输入注册邮箱">
     </div>
     <div class="form-group">
       <label>密码</label>
       <input type="password" id="loginPassword" placeholder="请输入密码">
     </div>
-    <button class="btn btn-primary" onclick="handleLogin()">登 录</button>
-    <div class="error-msg" id="loginError"></div>
+    <button class="btn btn-primary" id="loginBtn" onclick="handleLogin()">登 录</button>
+    <div class="msg error" id="loginError"></div>
     <div class="divider">或</div>
     <button class="btn btn-outline" onclick="skipLogin()">跳过登录，本地使用</button>
   </div>
@@ -174,9 +179,8 @@ body {
   <!-- 注册面板 -->
   <div class="form-panel" id="registerPanel">
     <div class="form-group">
-      <label>用户名</label>
-      <input type="text" id="regUsername" placeholder="给自己起个名字（字母/数字/中文）">
-      <div class="nickname-hint">用于登录，不可修改</div>
+      <label>邮箱</label>
+      <input type="email" id="regEmail" placeholder="用于登录和找回密码">
     </div>
     <div class="form-group">
       <label>昵称</label>
@@ -185,15 +189,15 @@ body {
     </div>
     <div class="form-group">
       <label>密码</label>
-      <input type="password" id="regPassword" placeholder="至少4位密码">
+      <input type="password" id="regPassword" placeholder="至少6位密码">
     </div>
     <div class="form-group">
       <label>确认密码</label>
       <input type="password" id="regPassword2" placeholder="再次输入密码">
     </div>
-    <button class="btn btn-primary" onclick="handleRegister()">注 册</button>
-    <div class="error-msg" id="regError"></div>
-    <div class="success-msg" id="regSuccess"></div>
+    <button class="btn btn-primary" id="regBtn" onclick="handleRegister()">注 册</button>
+    <div class="msg error" id="regError"></div>
+    <div class="msg success" id="regSuccess"></div>
   </div>
 
   <!-- 换设备：导入数据 -->
@@ -202,57 +206,44 @@ body {
     <p>在旧设备上登录后点击「导出数据」，把文件发到新设备，然后在这里导入。</p>
     <input type="file" id="importFile" accept=".json" style="display:none" onchange="handleImport(event)">
     <button class="btn btn-outline" onclick="document.getElementById('importFile').click()">📥 导入数据文件</button>
-    <div class="error-msg" id="importError"></div>
-    <div class="success-msg" id="importSuccess"></div>
+    <div class="msg error" id="importError"></div>
+    <div class="msg success" id="importSuccess"></div>
   </div>
+
+  <div class="supabase-status" id="supabaseStatus">🔗 检查服务连接中...</div>
 </div>
 
+<!-- Supabase SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-// ==================== 本地账号系统 ====================
-// 所有账号数据存在 localStorage 中
-// 结构：study_accounts = { "username1": { password: "hashed", nickname: "昵称", createdAt: "..." }, ... }
+// ==================== Supabase 配置 ====================
+// TODO: 替换为你的 Supabase 项目信息
+const SUPABASE_URL = 'https://YOUR_PROJECT_ID.supabase.co';
+const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY';
 
-function getAllAccounts() {
-  try {
-    return JSON.parse(localStorage.getItem('study_accounts') || '{}');
-  } catch { return {}; }
+let supabase = null;
+
+try {
+  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  document.getElementById('supabaseStatus').textContent = '☁️ 云端同步已就绪';
+  document.getElementById('supabaseStatus').className = 'supabase-status connected';
+} catch(e) {
+  document.getElementById('supabaseStatus').textContent = '⚠️ 云端服务未配置，使用本地模式';
+  document.getElementById('supabaseStatus').className = 'supabase-status disconnected';
 }
 
-function saveAllAccounts(accounts) {
-  localStorage.setItem('study_accounts', JSON.stringify(accounts));
-}
-
-// 简单哈希（浏览器环境用，不是真正的安全加密，但足够防止明文存储）
-function simpleHash(str) {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash |= 0;
-  }
-  return 'h_' + Math.abs(hash).toString(36);
-}
-
-// 检查是否已登录
-function getCurrentUser() {
-  try {
-    const raw = localStorage.getItem('study_current_user');
-    return raw ? JSON.parse(raw) : null;
-  } catch { return null; }
-}
-
-// Tab 切换
+// ==================== Tab 切换 ====================
 document.querySelectorAll('.tab').forEach(tab => {
   tab.addEventListener('click', () => {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     tab.classList.add('active');
     document.querySelectorAll('.form-panel').forEach(p => p.classList.remove('active'));
     document.getElementById(tab.dataset.tab === 'login' ? 'loginPanel' : 'registerPanel').classList.add('active');
-    hideErrors();
+    hideMessages();
   });
 });
 
-function hideErrors() {
+function hideMessages() {
   ['loginError', 'regError', 'regSuccess', 'importError', 'importSuccess'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
@@ -268,111 +259,260 @@ document.addEventListener('keydown', e => {
 });
 
 // ==================== 登录 ====================
-function handleLogin() {
-  const username = document.getElementById('loginUsername').value.trim();
+async function handleLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
   const password = document.getElementById('loginPassword').value.trim();
   const errEl = document.getElementById('loginError');
+  const btn = document.getElementById('loginBtn');
 
-  if (!username || !password) {
-    errEl.textContent = '请填写用户名和密码';
-    errEl.style.display = 'block';
+  hideMessages();
+
+  if (!email || !password) {
+    showMsg(errEl, '请填写邮箱和密码');
     return;
   }
 
-  const accounts = getAllAccounts();
-  const account = accounts[username];
+  btn.disabled = true;
+  btn.textContent = '登录中...';
 
-  if (!account) {
-    errEl.textContent = '用户不存在，请先注册';
-    errEl.style.display = 'block';
-    return;
+  // 尝试 Supabase 登录
+  if (supabase) {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+      if (error) {
+        if (error.message.includes('Invalid login credentials')) {
+          showMsg(errEl, '邮箱或密码错误');
+        } else {
+          showMsg(errEl, error.message);
+        }
+        btn.disabled = false;
+        btn.textContent = '登 录';
+        return;
+      }
+
+      if (data.user) {
+        // 保存用户信息到本地
+        const nickname = data.user.user_metadata?.nickname || email.split('@')[0];
+        localStorage.setItem('study_current_user', JSON.stringify({
+          username: email,
+          nickname: nickname,
+          userId: data.user.id,
+          email: email,
+          loginTime: new Date().toISOString()
+        }));
+        localStorage.removeItem('study_auth_skip');
+
+        // 拉取云端数据
+        await pullCloudData(data.user.id);
+        window.location.href = 'index.html';
+        return;
+      }
+    } catch (e) {
+      showMsg(errEl, '网络错误，请检查网络连接后重试');
+      btn.disabled = false;
+      btn.textContent = '登 录';
+      return;
+    }
   }
 
-  if (account.password !== simpleHash(password)) {
-    errEl.textContent = '密码错误';
-    errEl.style.display = 'block';
-    return;
+  // Supabase 不可用时，尝试本地登录
+  localLogin(email, password, errEl, btn);
+}
+
+// 本地登录（fallback）
+function localLogin(email, password, errEl, btn) {
+  try {
+    const accounts = JSON.parse(localStorage.getItem('study_accounts') || '{}');
+    const account = accounts[email];
+
+    if (!account) {
+      showMsg(errEl, '账号不存在，请先注册');
+      btn.disabled = false;
+      btn.textContent = '登 录';
+      return;
+    }
+
+    // 简单密码验证
+    const hash = 'h_' + Math.abs(email.length * 31 + password.split('').reduce((s,c)=>s+c.charCodeAt(0),0)).toString(36);
+    if (account.password !== hash && account.password !== simpleHash(password)) {
+      showMsg(errEl, '密码错误');
+      btn.disabled = false;
+      btn.textContent = '登 录';
+      return;
+    }
+
+    localStorage.setItem('study_current_user', JSON.stringify({
+      username: email,
+      nickname: account.nickname || email.split('@')[0],
+      loginTime: new Date().toISOString()
+    }));
+    localStorage.removeItem('study_auth_skip');
+    window.location.href = 'index.html';
+  } catch(e) {
+    showMsg(errEl, '登录失败');
+    btn.disabled = false;
+    btn.textContent = '登 录';
   }
+}
 
-  // 登录成功
-  const user = {
-    username: username,
-    nickname: account.nickname || username,
-    loginTime: new Date().toISOString()
-  };
-  localStorage.setItem('study_current_user', JSON.stringify(user));
-  localStorage.removeItem('study_auth_skip');
-  
-  // 切换到该用户的数据
-  switchToUserData(username);
-
-  window.location.href = 'index.html';
+function simpleHash(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash |= 0;
+  }
+  return 'h_' + Math.abs(hash).toString(36);
 }
 
 // ==================== 注册 ====================
-function handleRegister() {
-  const username = document.getElementById('regUsername').value.trim();
+async function handleRegister() {
+  const email = document.getElementById('regEmail').value.trim();
   const nickname = document.getElementById('regNickname').value.trim();
   const password = document.getElementById('regPassword').value.trim();
   const password2 = document.getElementById('regPassword2').value.trim();
   const errEl = document.getElementById('regError');
   const sucEl = document.getElementById('regSuccess');
+  const btn = document.getElementById('regBtn');
 
-  errEl.style.display = 'none';
-  sucEl.style.display = 'none';
+  hideMessages();
 
-  if (!username || !nickname || !password) {
-    errEl.textContent = '请填写所有字段';
-    errEl.style.display = 'block';
+  if (!email || !nickname || !password) {
+    showMsg(errEl, '请填写所有字段');
     return;
   }
 
-  // 用户名只能包含字母、数字、中文、下划线
-  if (!/^[\w\u4e00-\u9fa5]{2,20}$/.test(username)) {
-    errEl.textContent = '用户名需2-20位，只能包含字母、数字、中文和下划线';
-    errEl.style.display = 'block';
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    showMsg(errEl, '请输入有效的邮箱地址');
     return;
   }
 
-  if (password.length < 4) {
-    errEl.textContent = '密码至少4位';
-    errEl.style.display = 'block';
+  if (password.length < 6) {
+    showMsg(errEl, '密码至少6位');
     return;
   }
   if (password !== password2) {
-    errEl.textContent = '两次密码不一致';
-    errEl.style.display = 'block';
+    showMsg(errEl, '两次密码不一致');
     return;
   }
 
-  const accounts = getAllAccounts();
+  btn.disabled = true;
+  btn.textContent = '注册中...';
 
-  if (accounts[username]) {
-    errEl.textContent = '用户名已存在，请换一个';
-    errEl.style.display = 'block';
-    return;
+  // 尝试 Supabase 注册
+  if (supabase) {
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: email,
+        password: password,
+        options: {
+          data: { nickname: nickname }
+        }
+      });
+
+      if (error) {
+        if (error.message.includes('already registered') || error.message.includes('already exists')) {
+          showMsg(errEl, '该邮箱已注册，请直接登录');
+        } else {
+          showMsg(errEl, error.message);
+        }
+        btn.disabled = false;
+        btn.textContent = '注 册';
+        return;
+      }
+
+      if (data.user) {
+        // 自动登录
+        localStorage.setItem('study_current_user', JSON.stringify({
+          username: email,
+          nickname: nickname,
+          userId: data.user.id,
+          email: email,
+          loginTime: new Date().toISOString()
+        }));
+        localStorage.removeItem('study_auth_skip');
+
+        showMsg(sucEl, '注册成功！正在跳转...');
+        setTimeout(() => { window.location.href = 'index.html'; }, 1000);
+        return;
+      }
+
+      // 需要邮箱验证
+      showMsg(sucEl, '注册成功！如需邮箱验证，请查看邮箱后登录。');
+      btn.disabled = false;
+      btn.textContent = '注 册';
+      return;
+    } catch (e) {
+      showMsg(errEl, '网络错误，请检查网络连接');
+      btn.disabled = false;
+      btn.textContent = '注 册';
+      return;
+    }
   }
 
-  // 创建账号
-  accounts[username] = {
-    password: simpleHash(password),
-    nickname: nickname,
-    createdAt: new Date().toISOString()
-  };
-  saveAllAccounts(accounts);
+  // 本地注册（fallback）
+  localRegister(email, nickname, password, errEl, sucEl, btn);
+}
 
-  // 自动登录
-  const user = {
-    username: username,
-    nickname: nickname,
-    loginTime: new Date().toISOString()
-  };
-  localStorage.setItem('study_current_user', JSON.stringify(user));
-  localStorage.removeItem('study_auth_skip');
+function localRegister(email, nickname, password, errEl, sucEl, btn) {
+  try {
+    const accounts = JSON.parse(localStorage.getItem('study_accounts') || '{}');
+    if (accounts[email]) {
+      showMsg(errEl, '该邮箱已注册，请直接登录');
+      btn.disabled = false;
+      btn.textContent = '注 册';
+      return;
+    }
 
-  sucEl.textContent = '注册成功！正在跳转...';
-  sucEl.style.display = 'block';
-  setTimeout(() => { window.location.href = 'index.html'; }, 800);
+    accounts[email] = {
+      password: simpleHash(password),
+      nickname: nickname,
+      createdAt: new Date().toISOString()
+    };
+    localStorage.setItem('study_accounts', JSON.stringify(accounts));
+
+    localStorage.setItem('study_current_user', JSON.stringify({
+      username: email,
+      nickname: nickname,
+      loginTime: new Date().toISOString()
+    }));
+    localStorage.removeItem('study_auth_skip');
+
+    showMsg(sucEl, '注册成功！正在跳转...');
+    setTimeout(() => { window.location.href = 'index.html'; }, 800);
+  } catch(e) {
+    showMsg(errEl, '注册失败');
+    btn.disabled = false;
+    btn.textContent = '注 册';
+  }
+}
+
+// ==================== 云端数据拉取 ====================
+async function pullCloudData(userId) {
+  if (!supabase) return;
+  try {
+    const { data, error } = await supabase
+      .from('user_data')
+      .select('data, nickname')
+      .eq('user_id', userId)
+      .single();
+
+    if (error || !data || !data.data) return;
+
+    const userData = data.data;
+    Object.keys(userData).forEach(key => {
+      const storageKey = 'study_' + key;
+      const value = userData[key];
+      if (typeof value === 'string') {
+        localStorage.setItem(storageKey, value);
+      } else {
+        localStorage.setItem(storageKey, JSON.stringify(value));
+      }
+    });
+  } catch(e) {
+    console.log('拉取云端数据失败:', e.message);
+  }
 }
 
 // ==================== 跳过登录 ====================
@@ -382,74 +522,94 @@ function skipLogin() {
   window.location.href = 'index.html';
 }
 
-// ==================== 导入数据（换设备用）====================
+// ==================== 导入数据 ====================
 function handleImport(event) {
   const file = event.target.files[0];
   if (!file) return;
 
   const reader = new FileReader();
-  reader.onload = function(e) {
+  reader.onload = async function(e) {
     try {
       const data = JSON.parse(e.target.result);
       const errEl = document.getElementById('importError');
       const sucEl = document.getElementById('importSuccess');
 
-      errEl.style.display = 'none';
-      sucEl.style.display = 'none';
+      hideMessages();
 
-      // 验证数据格式
       if (!data.exportType || data.exportType !== 'beikao_backup') {
-        errEl.textContent = '无效的数据文件格式';
-        errEl.style.display = 'block';
+        showMsg(errEl, '无效的数据文件格式');
         return;
       }
 
-      // 导入账号
+      // 导入用户数据
+      if (data.userData) {
+        Object.keys(data.userData).forEach(key => {
+          const storageKey = 'study_' + key;
+          const value = data.userData[key];
+          if (typeof value === 'string') {
+            localStorage.setItem(storageKey, value);
+          } else {
+            localStorage.setItem(storageKey, JSON.stringify(value));
+          }
+        });
+      }
+
+      // 导入账号信息（兼容旧格式）
       if (data.accounts) {
-        const existing = getAllAccounts();
+        const existing = JSON.parse(localStorage.getItem('study_accounts') || '{}');
         const merged = { ...existing, ...data.accounts };
-        saveAllAccounts(merged);
+        localStorage.setItem('study_accounts', JSON.stringify(merged));
       }
 
-      // 导入当前用户数据（直接覆盖本地数据）
-      if (data.username && data.userData) {
-        // 保存到用户专属存储
-        const allUserData = JSON.parse(localStorage.getItem('study_all_user_data') || '{}');
-        allUserData[data.username] = data.userData;
-        localStorage.setItem('study_all_user_data', JSON.stringify(allUserData));
+      // 如果当前有 Supabase 且已登录，推送到云端
+      if (supabase) {
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (sessionData?.session?.user) {
+          await pushLocalToCloud(sessionData.session.user.id);
+        }
       }
 
-      sucEl.textContent = '数据导入成功！请用原来的账号登录。';
-      sucEl.style.display = 'block';
-
-      // 如果当前有登录用户且和导入的用户名相同，刷新页面
-      const currentUser = getCurrentUser();
-      if (currentUser && currentUser.username === data.username) {
-        switchToUserData(data.username);
-        setTimeout(() => { window.location.href = 'index.html'; }, 1000);
-      }
-
+      showMsg(sucEl, '数据导入成功！请用原来的账号登录，或直接进入主页。');
     } catch (err) {
       const errEl = document.getElementById('importError');
-      errEl.textContent = '文件解析失败：' + err.message;
-      errEl.style.display = 'block';
+      showMsg(errEl, '文件解析失败：' + err.message);
     }
   };
   reader.readAsText(file);
 }
 
-// ==================== 切换到用户专属数据 ====================
-function switchToUserData(username) {
-  const allUserData = JSON.parse(localStorage.getItem('study_all_user_data') || '{}');
-  const userData = allUserData[username];
-  
-  if (userData) {
-    // 恢复用户数据到 study_* 键
-    Object.keys(userData).forEach(key => {
-      localStorage.setItem('study_' + key, JSON.stringify(userData[key]));
-    });
+async function pushLocalToCloud(userId) {
+  if (!supabase) return;
+  const userData = {};
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key.startsWith('study_') &&
+        key !== 'study_accounts' &&
+        key !== 'study_current_user' &&
+        key !== 'study_all_user_data' &&
+        key !== 'study_auth_skip') {
+      try {
+        userData[key.substring(6)] = JSON.parse(localStorage.getItem(key));
+      } catch {
+        userData[key.substring(6)] = localStorage.getItem(key);
+      }
+    }
   }
-  // 没有数据就保留当前的（新用户）
+
+  try {
+    await supabase.from('user_data').upsert({
+      user_id: userId,
+      data: userData,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'user_id' });
+  } catch(e) {
+    console.log('推送数据失败:', e.message);
+  }
+}
+
+function showMsg(el, msg) {
+  el.textContent = msg;
+  el.style.display = 'block';
 }
 </script>
 

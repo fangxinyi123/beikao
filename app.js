@@ -8,8 +8,21 @@ const Storage = {
   },
   set(key, val) {
     localStorage.setItem('study_' + key, JSON.stringify(val));
+    // 每次数据变更时标记需要同步
+    _markDirty();
   }
 };
+
+// 防抖同步标记
+let _dirtyTimer = null;
+function _markDirty() {
+  if (_dirtyTimer) clearTimeout(_dirtyTimer);
+  _dirtyTimer = setTimeout(() => {
+    if (typeof CloudSync !== 'undefined' && CloudSync.pushToCloud) {
+      CloudSync.pushToCloud();
+    }
+  }, 2000);
+}
 
 // ==================== 共享数据引用 ====================
 function getMottos() { return typeof SharedData !== 'undefined' ? SharedData.MOTTOS : []; }
@@ -131,11 +144,20 @@ function closeModal() {
 }
 
 // ==================== 用户信息显示 ====================
-function updateUserInfo() {
+async function updateUserInfo() {
   const el = document.getElementById('userInfo');
   if (!el) return;
-  if (typeof Auth !== 'undefined' && Auth.isLoggedIn()) {
-    el.innerHTML = '👤 ' + escapeHtml(Auth.nickname()) + ' | <span style="color:#e74c3c;cursor:pointer" onclick="handleLogout()">退出</span>';
+  
+  let loggedIn = false;
+  if (typeof Auth !== 'undefined') {
+    try {
+      loggedIn = await Auth.isLoggedIn();
+    } catch { loggedIn = false; }
+  }
+
+  if (loggedIn) {
+    const nickname = typeof Auth !== 'undefined' ? await Auth.nickname() : '研友';
+    el.innerHTML = '👤 ' + escapeHtml(nickname) + ' | <span style="color:#e74c3c;cursor:pointer" onclick="handleLogout()">退出</span>';
   } else if (typeof Auth !== 'undefined' && Auth.isSkipped()) {
     el.innerHTML = '👤 离线模式 | <a href="auth.html" style="color:var(--primary)">登录</a>';
   } else {
@@ -145,7 +167,7 @@ function updateUserInfo() {
   // 导出按钮：只在登录后显示
   const exportBtn = document.getElementById('exportDataBtn');
   if (exportBtn) {
-    if (typeof Auth !== 'undefined' && Auth.isLoggedIn()) {
+    if (loggedIn) {
       exportBtn.style.display = 'inline-block';
       exportBtn.title = '导出数据（换设备时用）';
     } else {
@@ -154,8 +176,8 @@ function updateUserInfo() {
   }
 }
 
-function handleLogout() {
-  if (typeof Auth !== 'undefined') Auth.logout();
+async function handleLogout() {
+  if (typeof Auth !== 'undefined') await Auth.logout();
 }
 
 // 导出数据按钮事件
@@ -2193,9 +2215,10 @@ document.addEventListener('keydown', function(e) {
 
 // ==================== 初始化 ====================
 async function init() {
-  // 认证检查（本地账号系统）
+  // 认证检查（云端同步 + 本地账号系统）
   if (typeof checkAuthAndInit === 'function') {
-    if (!checkAuthAndInit()) return;
+    const authed = await checkAuthAndInit();
+    if (!authed) return;
   }
 
   try { if (typeof SharedData !== 'undefined') await SharedData.load(); } catch (e) { console.error('数据加载失败:', e); }
@@ -2203,7 +2226,7 @@ async function init() {
   try { initTheme(); } catch (e) { console.error('主题初始化失败:', e); }
   try { initNavigation(); } catch (e) { console.error('导航初始化失败:', e); }
   try { updateMottos(); } catch (e) { console.error('激励语更新失败:', e); }
-  try { updateUserInfo(); } catch (e) { console.error('用户信息更新失败:', e); }
+  try { await updateUserInfo(); } catch (e) { console.error('用户信息更新失败:', e); }
 
   focusSeconds = focusPresetMinutes * 60;
   try {
